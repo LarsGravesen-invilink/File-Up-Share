@@ -329,7 +329,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=$(which node) ${INSTALL_DIR}/server/index.js
+ExecStart=$(which node) ${INSTALL_DIR}/server/index.cjs
 Restart=always
 RestartSec=3
 Environment=NODE_ENV=production

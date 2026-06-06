@@ -12,8 +12,8 @@ if command -v node >/dev/null 2>&1; then printf "$(node -v)\n"; else printf "Н�
 printf "  [2] dist/index.html: "
 if [ -f "${INSTALL_DIR}/dist/index.html" ]; then printf "OK ($(wc -c < ${INSTALL_DIR}/dist/index.html) bytes)\n"; else printf "НЕ НАЙДЕН\n"; fi
 
-printf "  [3] server/index.js: "
-if [ -f "${INSTALL_DIR}/server/index.js" ]; then printf "OK\n"; else printf "НЕ НАЙДЕН\n"; fi
+printf "  [3] server/index.cjs: "
+if [ -f "${INSTALL_DIR}/server/index.cjs" ]; then printf "OK\n"; else printf "НЕ НАЙДЕН\n"; fi
 
 printf "  [4] Сервис fileupshare: "
 if systemctl is-active "$SERVICE_NAME" >/dev/null 2>&1; then printf "АКТИВЕН\n"; else printf "НЕ АКТИВЕН\n"; fi
@@ -52,7 +52,7 @@ else
     printf "ОШИБКА ($RESP)\n"
     printf "\n  Попытка запуска вручную...\n"
     cd "$INSTALL_DIR"
-    DATA_DIR="$DATA_DIR" PORT=3000 node server/index.js &
+    DATA_DIR="$DATA_DIR" PORT=3000 node server/index.cjs &
     NODEPID=$!
     sleep 2
     RESP2=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/state 2>/dev/null)
