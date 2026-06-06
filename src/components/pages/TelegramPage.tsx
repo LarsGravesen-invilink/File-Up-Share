@@ -44,36 +44,42 @@ const TgLink: React.FC<{ children: React.ReactNode }> = ({ children }) => <span 
 const TgMuted: React.FC<{ children: React.ReactNode }> = ({ children }) => <span className="text-[#7a8a9a]">{children}</span>;
 
 export const TelegramPage: React.FC<Props> = ({ settings, onUpdate }) => {
-  const [enabled, setEnabled] = useState(false);
-  const [token, setToken] = useState('');
-  const [dest, setDest] = useState<Dest>('chat');
-  const [chatId, setChatId] = useState('');
-  const [channelId, setChannelId] = useState('');
+  const [enabled, setEnabled] = useState(settings.botEnabled || false);
+  const [token, setToken] = useState(settings.botToken || '');
+  const [dest, setDest] = useState<Dest>((settings.botDest as Dest) || 'chat');
+  const [chatId, setChatId] = useState(settings.botChatId || '');
+  const [channelId, setChannelId] = useState(settings.botChannelId || '');
   const [useManualId, setUseManualId] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showPreviews, setShowPreviews] = useState(false);
 
-  const [quietEnabled, setQuietEnabled] = useState(false);
-  const [quietFrom, setQuietFrom] = useState('23:00');
-  const [quietTo, setQuietTo] = useState('08:00');
+  const [quietEnabled, setQuietEnabled] = useState(settings.botQuietEnabled || false);
+  const [quietFrom, setQuietFrom] = useState(settings.botQuietFrom || '23:00');
+  const [quietTo, setQuietTo] = useState(settings.botQuietTo || '08:00');
 
-  const [summaryEnabled, setSummaryEnabled] = useState(false);
-  const [summaryTime, setSummaryTime] = useState('09:00');
+  const [summaryEnabled, setSummaryEnabled] = useState(settings.botSummaryEnabled || false);
+  const [summaryTime, setSummaryTime] = useState(settings.botSummaryTime || '09:00');
 
-  const [notifyShare, setNotifyShare] = useState(true);
-  const [notifyUpload, setNotifyUpload] = useState(true);
-  const [notifyReceived, setNotifyReceived] = useState(true);
-  const [notifyService, setNotifyService] = useState(true);
+  const [notifyShare, setNotifyShare] = useState(settings.botNotifyShare !== false);
+  const [notifyUpload, setNotifyUpload] = useState(settings.botNotifyUpload !== false);
+  const [notifyReceived, setNotifyReceived] = useState(settings.botNotifyReceived !== false);
+  const [notifyService, setNotifyService] = useState(settings.botNotifyService !== false);
 
-  const [pollInterval, setPollInterval] = useState(settings.botPollInterval.toString());
-  const [pollUnit, setPollUnit] = useState<'sec' | 'min'>(settings.botPollUnit);
+  const [pollInterval, setPollInterval] = useState((settings.botPollInterval || 3).toString());
+  const [pollUnit, setPollUnit] = useState<'sec' | 'min'>(settings.botPollUnit || 'sec');
 
   const isConfigured = token.length > 10;
   const status = !isConfigured ? 'Не настроен' : enabled ? 'Запущен' : 'Остановлен';
   const statusColor = !isConfigured ? 'text-text-muted' : enabled ? 'text-accent' : 'text-danger';
 
   const handleSave = () => {
-    onUpdate({ botPollInterval: parseInt(pollInterval) || 3, botPollUnit: pollUnit });
+    onUpdate({
+      botEnabled: enabled, botToken: token, botDest: dest, botChatId: chatId, botChannelId: channelId,
+      botQuietEnabled: quietEnabled, botQuietFrom: quietFrom, botQuietTo: quietTo,
+      botSummaryEnabled: summaryEnabled, botSummaryTime: summaryTime,
+      botNotifyShare: notifyShare, botNotifyUpload: notifyUpload, botNotifyReceived: notifyReceived, botNotifyService: notifyService,
+      botPollInterval: parseInt(pollInterval) || 3, botPollUnit: pollUnit,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

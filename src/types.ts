@@ -25,10 +25,25 @@ export interface Settings {
   receivedPath: string;
   botPollInterval: number;
   botPollUnit: 'sec' | 'min';
+  botEnabled: boolean;
+  botToken: string;
+  botDest: string;
+  botChatId: string;
+  botChannelId: string;
+  botQuietEnabled: boolean;
+  botQuietFrom: string;
+  botQuietTo: string;
+  botSummaryEnabled: boolean;
+  botSummaryTime: string;
+  botNotifyShare: boolean;
+  botNotifyUpload: boolean;
+  botNotifyReceived: boolean;
+  botNotifyService: boolean;
   accessDomain: string;
   accessPort: number;
   accessSSL: boolean;
   accessMode: 'ip' | 'domain';
+  orientation: 'off' | 'auto' | 'landscape' | 'portrait';
 }
 
 export interface Stats {
@@ -176,4 +191,26 @@ export function isQuotaExceeded(settings: Settings, usedMB: number): boolean {
 
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 10);
+}
+
+export function buildShareUrl(id: string, settings?: Settings): string {
+  const encoded = btoa(id);
+  if (typeof window !== 'undefined') return window.location.origin + '/s/' + encoded;
+  if (!settings) return '/s/' + encoded;
+  const proto = settings.accessSSL ? 'https' : 'http';
+  const host = settings.accessDomain || 'localhost';
+  const port = settings.accessPort;
+  const needPort = !settings.accessSSL && port && port !== 80 && port !== 443;
+  return `${proto}://${host}${needPort ? ':' + port : ''}/s/${encoded}`;
+}
+
+export function buildUploadUrl(id: string, settings?: Settings): string {
+  const encoded = btoa(id);
+  if (typeof window !== 'undefined') return window.location.origin + '/u/' + encoded;
+  if (!settings) return '/u/' + encoded;
+  const proto = settings.accessSSL ? 'https' : 'http';
+  const host = settings.accessDomain || 'localhost';
+  const port = settings.accessPort;
+  const needPort = !settings.accessSSL && port && port !== 80 && port !== 443;
+  return `${proto}://${host}${needPort ? ':' + port : ''}/u/${encoded}`;
 }

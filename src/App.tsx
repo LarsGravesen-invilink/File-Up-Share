@@ -47,7 +47,7 @@ const App: React.FC = () => {
       if (data && data.settings) {
         setAuth(data.auth || { firstRun: true, loggedIn: false });
         setSettings({ ...defaultSettings, ...(data.settings || {}) });
-        setStats(data.stats || {});
+        setStats({ ...(data.stats || {}), installed: data.installed, updated: data.updated });
         setShares(data.shares || []);
         setUploads(data.uploads || []);
         setReceivedFiles(data.received || []);

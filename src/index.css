@@ -65,6 +65,8 @@ input:focus, textarea:focus, select:focus {
   transform: scale(0.98);
 }
 
+
+
 .no-select {
   -webkit-user-select: none;
   user-select: none;

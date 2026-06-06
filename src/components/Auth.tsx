@@ -62,7 +62,7 @@ export const Auth: React.FC<Props> = ({ firstRun, onRegister, onLogin, name, log
   const inputClass = "w-full h-9 px-3 rounded-md bg-surface/60 border border-border text-[13px] text-text placeholder:text-text-muted/40 outline-none glow-input backdrop-blur-sm transition-all duration-200 disabled:opacity-30";
 
   return (
-    <div className="min-h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden">
+    <div className="h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-accent/[0.03] blur-[100px] pointer-events-none" />
       <div className="absolute inset-0 bg-vignette pointer-events-none" />
 

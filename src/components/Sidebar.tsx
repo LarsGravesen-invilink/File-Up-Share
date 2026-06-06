@@ -4,7 +4,7 @@ export type Page =
   | 'info'
   | 'create-share' | 'create-upload'
   | 'my-shares' | 'my-uploads' | 'received'
-  | 'design' | 'settings' | 'security' | 'telegram';
+  | 'design' | 'settings' | 'security' | 'telegram' | 'about';
 
 interface MI { id: Page; label: string; icon: string }
 interface MG { title: string; items: MI[] }
@@ -41,6 +41,7 @@ const groups: MG[] = [
     { id: 'settings', label: 'Настройка панели', icon: 'sun' },
     { id: 'security', label: 'Безопасность', icon: 'shield' },
     { id: 'telegram', label: 'Telegram bot', icon: 'msg' },
+    { id: 'about', label: 'О проекте', icon: 'info' },
   ]},
 ];
 
@@ -143,26 +144,15 @@ export const Sidebar: React.FC<Props> = ({ open, onClose, page, onNav, onLogout,
           ))}
         </nav>
 
-        {/* ─── Footer ─── */}
-        <div className="px-3 py-3 border-t border-accent/10 flex-shrink-0 space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] text-text-muted font-mono">1.0.1 <span className="text-accent/50">(stable)</span></span>
-            <button
-              onClick={check}
-              disabled={checking}
-              className={`text-[10px] font-medium transition-colors ${
-                upToDate ? 'text-accent' : checking ? 'text-text-muted animate-pulse' : 'text-accent/70 hover:text-accent'
-              }`}
-            >
-              {checking ? 'Проверка…' : upToDate ? '✓ Актуально' : 'Обновление'}
+        <div className="px-3 py-2.5 border-t border-accent/10 flex-shrink-0 space-y-2">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[9px] text-text-muted/40 font-mono">v1.0.1</span>
+            <button onClick={check} disabled={checking} className={`text-[9px] font-medium transition-colors ${upToDate ? 'text-accent' : checking ? 'text-text-muted animate-pulse' : 'text-accent/60 hover:text-accent'}`}>
+              {checking ? '...' : upToDate ? '✓' : '↻'}
             </button>
           </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-border text-[12px] font-medium text-text-muted hover:text-danger hover:border-danger/25 hover:bg-danger/5 transition-all duration-150"
-          >
-            {I.out}
-            Выход
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-border text-[11px] font-medium text-text-muted hover:text-danger hover:border-danger/25 hover:bg-danger/5 transition-all">
+            {I.out} Выход
           </button>
         </div>
       </aside>

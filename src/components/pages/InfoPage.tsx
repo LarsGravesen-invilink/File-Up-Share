@@ -28,9 +28,11 @@ const checkItems = [
 export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('ru-RU'));
   const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
   const [checking, setChecking] = useState(false);
   const [checkResults, setCheckResults] = useState<typeof checkItems | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [restartModal, setRestartModal] = useState(false);
 
   useEffect(() => {
     const i = setInterval(() => setTime(new Date().toLocaleTimeString('ru-RU')), 1000);
@@ -145,7 +147,7 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
       {/* Actions */}
       <div className="flex gap-2">
         {/* Logs */}
-        <button onClick={() => setShowLogs(!showLogs)} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5">
+        <button onClick={() => { setShowLogs(!showLogs); if (!showLogs) fetch('/api/logs').then(r=>r.json()).then(d=>setLogs(d.logs||[])).catch(()=>{}); }} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Логи
         </button>
@@ -157,7 +159,7 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
         </button>
 
         {/* Restart */}
-        <button onClick={restart} disabled={restarting} className="flex-1 h-9 rounded-lg border border-danger/20 bg-danger/5 text-[11px] font-medium text-danger hover:bg-danger/10 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50" title="Перезапускает Nginx, Node.js сервис и Telegram bot">
+        <button onClick={() => setRestartModal(true)} disabled={restarting} className="flex-1 h-9 rounded-lg border border-danger/20 bg-danger/5 text-[11px] font-medium text-danger hover:bg-danger/10 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50" title="Перезапускает Nginx, Node.js сервис и Telegram bot">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           {restarting ? 'Перезапуск...' : 'Перезапуск'}
         </button>
@@ -170,8 +172,12 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
             <span className="text-[11px] font-semibold text-text">Логи панели</span>
             <span className="text-[9px] text-text-muted">Автоочистка: 72ч</span>
           </div>
-          <div className="max-h-48 overflow-y-auto p-3">
-            <p className="text-[11px] text-text-muted text-center">Логи сервиса</p>
+          <div className="max-h-48 overflow-y-auto p-2 font-mono">
+            {logs.length > 0 ? logs.map((l, i) => (
+              <div key={i} className="text-[9px] text-text-secondary py-0.5 border-b border-border/20 last:border-0">{l}</div>
+            )) : (
+              <p className="text-[10px] text-text-muted text-center py-4">Нет данных</p>
+            )}
           </div>
         </div>
       )}
@@ -193,6 +199,20 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {restartModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setRestartModal(false)} />
+          <div className="relative w-full max-w-sm rounded-xl border border-danger/20 bg-surface/95 backdrop-blur-xl p-5 animate-in">
+            <h3 className="text-[13px] font-semibold text-text text-center mb-2">Перезапуск сервиса</h3>
+            <p className="text-[11px] text-text-muted text-center mb-4">Будут перезапущены все компоненты. Панель будет недоступна несколько секунд.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setRestartModal(false)} className="flex-1 h-9 rounded-md border border-border text-[11px] text-text-muted active:scale-[0.97] transition-all">Отмена</button>
+              <button onClick={() => { setRestartModal(false); setRestarting(true); fetch('/api/restart', { method: 'POST' }).catch(() => {}); setTimeout(() => setRestarting(false), 5000); }} className="flex-1 h-9 rounded-md bg-danger text-white text-[11px] font-medium active:scale-[0.97] transition-all">Перезапустить</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

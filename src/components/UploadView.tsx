@@ -274,7 +274,7 @@ export const UploadView: React.FC<Props> = ({ item, settings, onBack, isPreview 
       </main>
 
       {settings.adEnabled && (
-        <div className="px-4 py-3 text-center flex-shrink-0">
+        <div className="sticky bottom-0 px-4 py-3 text-center flex-shrink-0 backdrop-blur-md" style={{ background: theme.bg + 'cc' }}>
           <p className="text-[9px] leading-relaxed" style={{ color: theme.textMuted + 'aa', userSelect: 'text' }}>
             {showDefAd ? (
               <>Хотите так же управлять получением и раздачей файлов с помощью своего сервера Linux? Посетите страницу проекта <a href="https://github.com/LarsGravesen-invilink/File-Up-Share" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: theme.accent }}>GitHub</a></>

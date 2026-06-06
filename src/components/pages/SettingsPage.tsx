@@ -416,6 +416,22 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdate }) => {
         </div>
       </div>
 
+      {/* Orientation — mobile only */}
+      {'ontouchstart' in window && (
+        <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3">
+          <h3 className="text-[12px] font-semibold text-text flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            Ориентация
+          </h3>
+          <select value={settings.orientation || 'off'} onChange={e => onUpdate({ orientation: e.target.value as any })} className={inputCls}>
+            <option value="off">Отключено</option>
+            <option value="auto">Автоматически</option>
+            <option value="landscape">Альбомная</option>
+            <option value="portrait">Портретная</option>
+          </select>
+        </div>
+      )}
+
       {/* Date & Time */}
       <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3">
         <h3 className="text-[12px] font-semibold text-text flex items-center gap-2">

@@ -73,7 +73,10 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (url === '/api/state' && method === 'GET') {
-      return json(res, { auth: { firstRun: !auth.passHash, loggedIn: !!session }, settings, stats: getStats(), shares, uploads, received, stealth: fs.existsSync(fp('stealth.lock')) });
+      let installed = '', updated = '';
+      try { installed = fs.readFileSync(fp('installed.txt'), 'utf8').trim(); } catch {}
+      try { updated = fs.readFileSync(fp('updated.txt'), 'utf8').trim(); } catch {}
+      return json(res, { auth: { firstRun: !auth.passHash, loggedIn: !!session }, settings, stats: getStats(), shares, uploads, received, stealth: fs.existsSync(fp('stealth.lock')), installed, updated });
     }
 
     if (url === '/api/register' && method === 'POST') {
@@ -112,6 +115,22 @@ const server = http.createServer(async (req, res) => {
 
     if (url === '/api/stealth' && method === 'POST') { const b = await parseBody(req); try { if (b.on) fs.writeFileSync(fp('stealth.lock'), '1'); else fs.unlinkSync(fp('stealth.lock')); } catch {} return json(res, { ok: true }); }
 
+    if (url === '/api/restart' && method === 'POST') {
+      json(res, { ok: true });
+      setTimeout(() => { try { require('child_process').exec('systemctl restart fileupshare'); } catch {} }, 1000);
+      return;
+    }
+
+    if (url === '/api/logs' && method === 'GET') {
+      try {
+        const { execSync } = require('child_process');
+        const logs = execSync('journalctl -u fileupshare --no-pager -n 50 --output=short-iso 2>/dev/null || echo "Логи недоступны"').toString();
+        return json(res, { logs: logs.split('\n').filter(l => l.trim()).slice(-30) });
+      } catch {
+        return json(res, { logs: [] });
+      }
+    }
+
     if (url.match(/^\/api\/public\/share\//) && method === 'GET') {
       const encoded = url.split('/').pop();
       try {
@@ -148,6 +167,26 @@ try { fs.mkdirSync(settings.storagePath, { recursive: true }); } catch {}
 try { fs.mkdirSync(settings.receivedPath, { recursive: true }); } catch {}
 
 server.listen(PORT, '0.0.0.0', () => { console.log('FileUpShare API on port ' + PORT); });
+
+setInterval(() => {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  let changed = false;
+  uploads = uploads.filter(u => {
+    if (!u.lifetimeEnabled) return true;
+    const expires = u.createdAt + (u.lifetimeHours * 60 + u.lifetimeMinutes) * 60 * 1000;
+    if (now > expires + day) { changed = true; return false; }
+    if (u.currentUploads >= u.maxUploads) { changed = true; return false; }
+    return true;
+  });
+  shares = shares.filter(s => {
+    if (!s.lifetimeEnabled) return true;
+    const expires = s.createdAt + (s.lifetimeHours * 60 + s.lifetimeMinutes) * 60 * 1000;
+    if (now > expires + day) { changed = true; return false; }
+    return true;
+  });
+  if (changed) { writeJSON('uploads.json', uploads); writeJSON('shares.json', shares); }
+}, 60000);
 
 process.on('uncaughtException', (e) => { console.error('Uncaught:', e.message); });
 process.on('unhandledRejection', (e) => { console.error('Unhandled:', e); });

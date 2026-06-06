@@ -370,6 +370,8 @@ ln -sf ${INSTALL_DIR}/update.sh /usr/local/bin/update-fileupshare
 ln -sf ${INSTALL_DIR}/uninstall.sh /usr/local/bin/uninstall-fileupshare
 rm -rf /tmp/File-Up-Share; true"
 
+date +%Y-%m-%d > "${DATA_DIR}/installed.txt"
+date +%Y-%m-%d > "${DATA_DIR}/updated.txt"
 cat > "${DATA_DIR}/settings.json" << SETTINGS_END
 {
   "accessDomain": "${DOMAIN}",

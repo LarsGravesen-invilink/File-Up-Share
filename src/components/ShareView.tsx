@@ -211,7 +211,7 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
 
       {/* Footer — no border, merged */}
       {(settings.adEnabled) && (
-        <div className="px-4 py-3 text-center flex-shrink-0">
+        <div className="sticky bottom-0 px-4 py-3 text-center flex-shrink-0 backdrop-blur-md" style={{ background: t.bg + 'cc' }}>
           <p className="text-[9px] leading-relaxed" style={{ color: t.textMuted + 'aa', userSelect: 'text' }}>
             {showDefaultAd ? (
               <>{defaultAd}<a href={defaultAdLink} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: t.accent }}>GitHub</a></>

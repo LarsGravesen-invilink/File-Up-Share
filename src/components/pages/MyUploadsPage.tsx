@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { UploadPage as UploadPageType } from '../../types';
+import { buildUploadUrl } from '../../types';
 import type { Page } from '../Sidebar';
 
 interface Props {
@@ -22,8 +23,6 @@ export const MyUploadsPage: React.FC<Props> = ({ uploads, onRemove, onNavigate, 
     return h > 0 ? `${h}ч ${m}м` : `${m}м`;
   };
 
-  const getUploadUrl = (id: string) => btoa(id);
-
   const copyText = (text: string) => {
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(text).catch(() => { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); });
@@ -35,22 +34,17 @@ export const MyUploadsPage: React.FC<Props> = ({ uploads, onRemove, onNavigate, 
   const [copied, setCopied] = useState<string | null>(null);
 
   const handleCopyLink = (id: string) => {
-    const url = window.location.origin + '/u/' + getUploadUrl(id);
+    const url = buildUploadUrl(id);
     copyText(url);
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
+
   const handleShare = (id: string) => {
-    const url = window.location.origin + '/u/' + getUploadUrl(id);
-    const text = 'Вас просят загрузить файл';
-    if (navigator.share) {
-      navigator.share({ title: text, url }).catch(() => copyText(text + '\n' + url));
-    } else {
-      copyText(text + '\n' + url);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
-    }
+    const url = buildUploadUrl(id);
+    navigator.share({ title: 'Вас просят загрузить файл', url }).catch(() => {});
   };
 
   return (
@@ -80,10 +74,12 @@ export const MyUploadsPage: React.FC<Props> = ({ uploads, onRemove, onNavigate, 
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   Ссылка
                 </button>
-                <button onClick={() => handleShare(item.id)} className="h-7 px-2.5 rounded-md border border-border text-[10px] text-text-muted hover:text-text hover:border-border-light transition-colors flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                  Поделиться
-                </button>
+                {canShare && (
+                  <button onClick={() => handleShare(item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 active:scale-[0.97] transition-all flex items-center gap-1">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    Отправить
+                  </button>
+                )}
                 <button onClick={() => setExtending(extending === item.id ? null : item.id)} className="h-7 px-2.5 rounded-md border border-border text-[10px] text-text-muted hover:text-text hover:border-border-light transition-colors flex items-center gap-1">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   Продлить

@@ -94,6 +94,7 @@ run_step "Загрузка" bash -c "cd /tmp && rm -rf File-Up-Share && git clon
 run_step "Копирование" bash -c "rsync -a --exclude=data --exclude=.secret /tmp/File-Up-Share/ ${INSTALL_DIR}/ 2>/dev/null || cp -r /tmp/File-Up-Share/* ${INSTALL_DIR}/ 2>/dev/null; true"
 run_step "Модули" bash -c "cd ${INSTALL_DIR} && npm install >/dev/null 2>&1; true"
 run_step "Сборка" bash -c "cd ${INSTALL_DIR} && npm run build >/dev/null 2>&1; true"
+date +%Y-%m-%d > "${DATA_DIR:-/var/lib/fileupshare}/updated.txt"
 run_step "Перезапуск" bash -c "systemctl restart ${SERVICE_NAME} >/dev/null 2>&1; systemctl reload nginx >/dev/null 2>&1; rm -rf /tmp/File-Up-Share; true"
 
 pbar "Финализация"

@@ -10,10 +10,11 @@ import { MySharesPage } from './pages/MySharesPage';
 import { MyUploadsPage } from './pages/MyUploadsPage';
 import { ReceivedFilesPage } from './pages/ReceivedFilesPage';
 import { TelegramPage } from './pages/TelegramPage';
+import { AboutPage } from './pages/AboutPage';
 import { ShareView } from './ShareView';
 import { UploadView } from './UploadView';
 import { QuotaModal } from './QuotaModal';
-import { type Settings, type Stats, type ShareItem, type UploadPage as UPT, type ReceivedFile, isQuotaExceeded, uiScales, headerScales } from '../types';
+import { type Settings, type Stats, type ShareItem, type UploadPage as UPT, type ReceivedFile, isQuotaExceeded, uiScales, headerScales, buildShareUrl, buildUploadUrl } from '../types';
 
 const meta: Record<Page, { label: string }> = {
   'info': { label: 'Информация' },
@@ -26,6 +27,7 @@ const meta: Record<Page, { label: string }> = {
   'settings': { label: 'Настройка панели' },
   'security': { label: 'Безопасность' },
   'telegram': { label: 'Telegram bot' },
+  'about': { label: 'О проекте' },
 };
 
 const LAST_PAGE_KEY = 'fus_lastPage';
@@ -70,6 +72,13 @@ export const Panel: React.FC<Props> = ({
 
   const zoomValue = uiScales[settings.uiScale]?.rem || 1;
   const hs = headerScales[settings.headerScale] || headerScales.default;
+
+  useEffect(() => {
+    const o = settings.orientation;
+    if (!o || o === 'off' || o === 'auto') return;
+    try { (screen.orientation as any)?.lock?.(o).catch(() => {}); } catch {}
+    return () => { try { (screen.orientation as any)?.unlock?.(); } catch {} };
+  }, [settings.orientation]);
 
   // History stack for back button
   const historyRef = useRef<Page[]>([page]);
@@ -118,15 +127,13 @@ export const Panel: React.FC<Props> = ({
 
   const handleCreateShare = (item: ShareItem) => {
     onAddShare(item);
-    const url = `${location.origin}/s/${btoa(item.id)}`;
-    setLinkPopup({ url, type: 'share' });
+    setLinkPopup({ url: buildShareUrl(item.id), type: 'share' });
     navigate('my-shares');
   };
 
   const handleCreateUpload = (item: UPT) => {
     onAddUpload(item);
-    const url = `${location.origin}/u/${btoa(item.id)}`;
-    setLinkPopup({ url, type: 'upload' });
+    setLinkPopup({ url: buildUploadUrl(item.id), type: 'upload' });
     navigate('my-uploads');
   };
 
@@ -172,6 +179,8 @@ export const Panel: React.FC<Props> = ({
         return <SecurityPage settings={settings} onUpdate={onUpdate} onChangeCredentials={onChangeCredentials} onLogout={onLogout} botConfigured={false} />;
       case 'telegram':
         return <TelegramPage settings={settings} onUpdate={onUpdate} />;
+      case 'about':
+        return <AboutPage installed={(stats as any).installed} updated={(stats as any).updated} />;
       default:
         return (
           <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-8 sm:p-10">
@@ -188,21 +197,23 @@ export const Panel: React.FC<Props> = ({
   };
 
   return (
-    <div className={`min-h-dvh bg-bg bg-grid relative overflow-hidden panel-transition panel-no-select ${settings.panelTheme === 'light' ? 'panel-light' : ''}`} style={{ zoom: zoomValue }}>
+    <div className={`h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden panel-transition panel-no-select ${settings.panelTheme === 'light' ? 'panel-light' : ''}`} style={{ zoom: zoomValue }}>
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-radial pointer-events-none" />
 
       <Sidebar open={sidebar} onClose={() => setSidebar(false)} page={page} onNav={p => { setSidebar(false); navigate(p); }} onLogout={onLogout} name={settings.name} logo={settings.logo} panelTheme={settings.panelTheme} headerScale={hs} />
 
-      <header className="sticky top-0 z-30 flex items-center px-4 sm:px-6 border-b border-accent/10 bg-bg/80 backdrop-blur-md" style={{ height: `${hs.headerH}px` }}>
+      <header className="flex-shrink-0 flex items-center px-4 sm:px-6 border-b border-accent/10 bg-bg/80 backdrop-blur-md z-30" style={{ height: `${hs.headerH}px` }}>
         <button onClick={() => setSidebar(true)} className="rounded-lg flex items-center justify-center text-text-muted hover:text-accent hover:bg-accent/10 active:scale-95 transition-all mr-3" style={{ width: `${hs.menu + 14}px`, height: `${hs.menu + 14}px`, marginLeft: '-4px' }}>
           <svg width={hs.menu} height={hs.menu} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
         <h1 className="font-semibold text-text truncate" style={{ fontSize: `${hs.text}px` }}>{meta[page].label}</h1>
       </header>
 
-      <main className="relative z-10 px-4 sm:px-6 lg:px-8 py-5 max-w-2xl lg:max-w-3xl mx-auto">{renderPage()}</main>
+      <main className="flex-1 overflow-y-auto relative z-10 px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-2xl lg:max-w-3xl mx-auto">{renderPage()}</div>
+      </main>
 
-      <footer className="relative z-10 py-3 text-center"><p className="text-[9px] text-text-muted/25">by invilink | LarsGravesen</p></footer>
+      <footer className="flex-shrink-0 relative z-10 py-2 text-center border-t border-accent/5"><p className="text-[9px] text-text-muted/25">by invilink | LarsGravesen</p></footer>
 
       <QuotaModal show={showQuotaModal} onClose={() => setShowQuotaModal(false)} onSettings={() => { setShowQuotaModal(false); navigate('settings'); }} />
 

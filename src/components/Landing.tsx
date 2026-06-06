@@ -27,7 +27,7 @@ export const Landing: React.FC<Props> = ({ onLogin, name }) => {
   });
 
   return (
-    <div className="min-h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden">
+    <div className="h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden overflow-y-auto">
       {/* Radial glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-radial pointer-events-none" />
 
