@@ -8,12 +8,7 @@ interface Props {
   onNavigate: (page: Page) => void;
 }
 
-// Mock server info for preview
-const serverInfo = {
-  ip: '185.92.148.27',
-  hostname: 'vps-fileupshare',
-  ports: [80, 443, 3000],
-};
+
 
 const checkItems = [
   { name: 'Nginx', status: 'ok' as const },
@@ -28,16 +23,7 @@ const checkItems = [
   { name: 'Права доступа', status: 'ok' as const },
 ];
 
-const mockLogs = [
-  { t: '14:32:01', type: 'info', msg: 'Создана раздача abc123' },
-  { t: '14:30:15', type: 'info', msg: 'Пользователь авторизован' },
-  { t: '14:28:44', type: 'bot', msg: 'Уведомление отправлено' },
-  { t: '14:25:00', type: 'info', msg: 'Загружен файл report.pdf (2.4 МБ)' },
-  { t: '14:20:12', type: 'warn', msg: 'Бот: таймаут соединения, повтор...' },
-  { t: '14:15:33', type: 'info', msg: 'Сервис запущен' },
-  { t: '13:50:00', type: 'err', msg: 'Ошибка записи: ENOSPC' },
-  { t: '13:45:22', type: 'info', msg: 'Обращение GET /s/YWJj (200)' },
-];
+
 
 export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('ru-RU'));
@@ -99,11 +85,11 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           <div>
             <div className="text-[9px] text-text-muted">IP</div>
-            <div className="text-[12px] text-text font-mono">{serverInfo.ip}</div>
+            <div className="text-[12px] text-text font-mono">{(stats as any).ip || '—'}</div>
           </div>
           <div>
             <div className="text-[9px] text-text-muted">Имя</div>
-            <div className="text-[12px] text-text font-mono truncate">{serverInfo.hostname}</div>
+            <div className="text-[12px] text-text font-mono truncate">{(stats as any).hostname || '—'}</div>
           </div>
           <div>
             <div className="text-[9px] text-text-muted">Время</div>
@@ -111,7 +97,7 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
           </div>
           <div>
             <div className="text-[9px] text-text-muted">Порты</div>
-            <div className="text-[12px] text-text font-mono">{serverInfo.ports.join(', ')}</div>
+            <div className="text-[12px] text-text font-mono">{(stats as any).accessPort || settings.accessPort || '—'}</div>
           </div>
         </div>
       </div>
@@ -159,19 +145,19 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
       {/* Actions */}
       <div className="flex gap-2">
         {/* Logs */}
-        <button onClick={() => setShowLogs(!showLogs)} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 transition-colors flex items-center justify-center gap-1.5">
+        <button onClick={() => setShowLogs(!showLogs)} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Логи
         </button>
 
         {/* Check */}
-        <button onClick={runCheck} disabled={checking} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+        <button onClick={runCheck} disabled={checking} className="flex-1 h-9 rounded-lg border border-accent/15 bg-surface/30 text-[11px] font-medium text-text-secondary hover:text-text hover:border-accent/25 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           {checking ? 'Проверка...' : 'Проверить'}
         </button>
 
         {/* Restart */}
-        <button onClick={restart} disabled={restarting} className="flex-1 h-9 rounded-lg border border-danger/20 bg-danger/5 text-[11px] font-medium text-danger hover:bg-danger/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50" title="Перезапускает Nginx, Node.js сервис и Telegram bot">
+        <button onClick={restart} disabled={restarting} className="flex-1 h-9 rounded-lg border border-danger/20 bg-danger/5 text-[11px] font-medium text-danger hover:bg-danger/10 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50" title="Перезапускает Nginx, Node.js сервис и Telegram bot">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           {restarting ? 'Перезапуск...' : 'Перезапуск'}
         </button>
@@ -184,16 +170,8 @@ export const InfoPage: React.FC<Props> = ({ stats, settings, onNavigate }) => {
             <span className="text-[11px] font-semibold text-text">Логи панели</span>
             <span className="text-[9px] text-text-muted">Автоочистка: 72ч</span>
           </div>
-          <div className="max-h-48 overflow-y-auto p-2 space-y-0.5 font-mono">
-            {mockLogs.map((l, i) => (
-              <div key={i} className="flex items-start gap-2 px-1 py-0.5 rounded text-[10px]">
-                <span className="text-text-muted/60 flex-shrink-0">{l.t}</span>
-                <span className={`flex-shrink-0 w-3 text-center ${l.type === 'err' ? 'text-danger' : l.type === 'warn' ? 'text-warning' : l.type === 'bot' ? 'text-blue' : 'text-text-muted'}`}>
-                  {l.type === 'err' ? '✗' : l.type === 'warn' ? '!' : '·'}
-                </span>
-                <span className={`flex-1 ${l.type === 'err' ? 'text-danger' : 'text-text-secondary'}`}>{l.msg}</span>
-              </div>
-            ))}
+          <div className="max-h-48 overflow-y-auto p-3">
+            <p className="text-[11px] text-text-muted text-center">Логи сервиса</p>
           </div>
         </div>
       )}

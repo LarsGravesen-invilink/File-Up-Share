@@ -24,18 +24,32 @@ export const MyUploadsPage: React.FC<Props> = ({ uploads, onRemove, onNavigate, 
 
   const getUploadUrl = (id: string) => btoa(id);
 
+  const copyText = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); });
+    } else {
+      const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
+    }
+  };
+
+  const [copied, setCopied] = useState<string | null>(null);
+
   const handleCopyLink = (id: string) => {
     const url = window.location.origin + '/u/' + getUploadUrl(id);
-    navigator.clipboard?.writeText(url).catch(() => {});
+    copyText(url);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleShare = (id: string) => {
     const url = window.location.origin + '/u/' + getUploadUrl(id);
     const text = 'Вас просят загрузить файл';
     if (navigator.share) {
-      navigator.share({ title: text, text: text + '\n' + url }).catch(() => {});
+      navigator.share({ title: text, url }).catch(() => copyText(text + '\n' + url));
     } else {
-      navigator.clipboard?.writeText(text + '\n' + url).catch(() => {});
+      copyText(text + '\n' + url);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
     }
   };
 

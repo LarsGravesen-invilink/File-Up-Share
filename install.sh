@@ -135,9 +135,18 @@ while true; do
     printf "  \e[1;37mПроверка \e[0;36m%s\e[0m\n\n" "$DOMAIN"
 
     DNS_OK=0
-    if host "$DOMAIN" >/dev/null 2>&1; then
-        printf "  \e[0;32m✓\e[0m DNS\n"
+    SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    DOMAIN_IP="$(dig +short "$DOMAIN" A 2>/dev/null | head -1)"
+    if [ -z "$DOMAIN_IP" ]; then
+        DOMAIN_IP="$(host "$DOMAIN" 2>/dev/null | grep 'has address' | head -1 | awk '{print $NF}')"
+    fi
+    if [ -n "$DOMAIN_IP" ] && [ "$DOMAIN_IP" = "$SERVER_IP" ]; then
+        printf "  \e[0;32m✓\e[0m DNS → %s\n" "$DOMAIN_IP"
         DNS_OK=1
+    elif [ -n "$DOMAIN_IP" ]; then
+        printf "  \e[1;33m!\e[0m DNS → %s (сервер: %s)\n" "$DOMAIN_IP" "$SERVER_IP"
+        printf "\n  \e[1;33mДомен указывает на другой IP\e[0m\n"
+        DNS_OK=0
     else
         printf "  \e[0;31m✗\e[0m DNS не найден\n"
         printf "\n  \e[0;31mДомен не указывает на этот сервер\e[0m\n"

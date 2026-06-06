@@ -155,7 +155,7 @@ export const DesignPage: React.FC<Props> = ({ settings, onUpdate }) => {
         )}
       </div>
 
-      <button onClick={handleSave} className={`w-full h-10 rounded-lg text-[13px] font-semibold transition-all ${saved ? 'bg-accent/20 text-accent border border-accent/30' : 'bg-accent/90 text-bg hover:bg-accent shadow-[0_0_20px_#22c55e18]'}`}>
+      <button onClick={handleSave} disabled={saved} className={`w-full h-10 rounded-lg text-[13px] font-semibold transition-all active:scale-[0.98] ${saved ? 'bg-accent/20 text-accent border border-accent/30 opacity-60 pointer-events-none' : 'bg-accent/90 text-bg hover:bg-accent shadow-[0_0_20px_#22c55e18]'}`}>
         {saved ? '✓ Сохранено' : 'Сохранить настройки'}
       </button>
 

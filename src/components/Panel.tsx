@@ -87,6 +87,12 @@ export const Panel: React.FC<Props> = ({
     window.history.replaceState({ page }, '', '');
   }, []);
 
+  useEffect(() => {
+    const hasModal = sidebar || showQuotaModal || !!linkPopup || httpWarning;
+    document.body.classList.toggle('modal-open', hasModal);
+    return () => { document.body.classList.remove('modal-open'); };
+  }, [sidebar, showQuotaModal, linkPopup, httpWarning]);
+
   // Handle browser back button
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
@@ -134,8 +140,15 @@ export const Panel: React.FC<Props> = ({
   };
 
   // Preview views
-  if (previewShare) return <ShareView item={previewShare} settings={settings} onBack={() => setPreviewShare(null)} isPreview />;
-  if (previewUpload) return <UploadView item={previewUpload} settings={settings} onBack={() => setPreviewUpload(null)} isPreview />;
+  const previewOverlay = previewShare ? (
+    <div className="fixed inset-0 z-[55] bg-bg overflow-y-auto">
+      <ShareView item={previewShare} settings={settings} onBack={() => setPreviewShare(null)} isPreview />
+    </div>
+  ) : previewUpload ? (
+    <div className="fixed inset-0 z-[55] bg-bg overflow-y-auto">
+      <UploadView item={previewUpload} settings={settings} onBack={() => setPreviewUpload(null)} isPreview />
+    </div>
+  ) : null;
 
   const renderPage = () => {
     switch (page) {
@@ -187,7 +200,7 @@ export const Panel: React.FC<Props> = ({
         <h1 className="font-semibold text-text truncate" style={{ fontSize: `${hs.text}px` }}>{meta[page].label}</h1>
       </header>
 
-      <main className="relative z-10 px-4 sm:px-6 py-5 max-w-lg mx-auto">{renderPage()}</main>
+      <main className="relative z-10 px-4 sm:px-6 lg:px-8 py-5 max-w-2xl lg:max-w-3xl mx-auto">{renderPage()}</main>
 
       <footer className="relative z-10 py-3 text-center"><p className="text-[9px] text-text-muted/25">by invilink | LarsGravesen</p></footer>
 
@@ -227,6 +240,8 @@ export const Panel: React.FC<Props> = ({
           </div>
         </div>
       )}
+
+      {previewOverlay}
 
       {httpWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

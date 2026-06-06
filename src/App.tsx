@@ -3,6 +3,8 @@ import { Landing } from './components/Landing';
 import { Auth } from './components/Auth';
 import { Panel } from './components/Panel';
 import { StealthPage } from './components/StealthPage';
+import { ShareView } from './components/ShareView';
+import { UploadView } from './components/UploadView';
 
 const API = '/api';
 
@@ -117,6 +119,30 @@ const App: React.FC = () => {
   const changeCredentials = useCallback(async (l: string, p: string) => {
     try { await apiCall('/credentials', { method: 'POST', body: JSON.stringify({ login: l, pass: p }) }); } catch {}
   }, []);
+
+  const [publicShare, setPublicShare] = useState<any>(null);
+  const [publicUpload, setPublicUpload] = useState<any>(null);
+  const [publicSettings, setPublicSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const p = window.location.pathname;
+    if (p.startsWith('/s/')) {
+      const encoded = p.slice(3);
+      apiCall('/public/share/' + encoded).then(d => { if (d.share) { setPublicShare(d.share); setPublicSettings(d.settings); } }).catch(() => {});
+    }
+    if (p.startsWith('/u/')) {
+      const encoded = p.slice(3);
+      apiCall('/public/upload/' + encoded).then(d => { if (d.upload) { setPublicUpload(d.upload); setPublicSettings(d.settings); } }).catch(() => {});
+    }
+  }, []);
+
+  if (publicShare && publicSettings) {
+    return <ShareView item={publicShare} settings={{ ...defaultSettings, ...publicSettings }} />;
+  }
+
+  if (publicUpload && publicSettings) {
+    return <UploadView item={publicUpload} settings={{ ...defaultSettings, ...publicSettings }} />;
+  }
 
   if (!loaded) {
     return (

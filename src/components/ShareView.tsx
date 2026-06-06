@@ -103,8 +103,8 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
   const canV = (f: ShareFile) => f.type.startsWith('image/') || f.type.startsWith('video/');
 
   const DlBtn: React.FC<{ f: ShareFile; small?: boolean }> = ({ f, small }) => canDl ? (
-    <button onClick={e => { e.stopPropagation(); dl(f); }} className={`rounded flex items-center justify-center flex-shrink-0 ${small ? 'w-7 h-7' : 'h-9 px-5 rounded-lg text-[12px] font-semibold gap-2'}`} style={small ? { color: t.accent } : { background: t.accent, color: t.accentText }}>
-      <svg width={small ? 12 : 14} height={small ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <button onClick={e => { e.stopPropagation(); dl(f); }} className={`rounded flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-80 ${small ? 'w-7 h-7' : 'h-10 px-6 rounded-lg text-[13px] font-semibold gap-2'}`} style={small ? { color: t.textMuted } : { background: t.text + '18', color: t.text, border: `1px solid ${t.text}25` }}>
+      <svg width={small ? 12 : 15} height={small ? 12 : 15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       {!small && 'Скачать'}
     </button>
   ) : null;
@@ -134,21 +134,17 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
 
       {viewerFile && <Viewer file={viewerFile} onClose={() => setViewerFile(null)} viewOnly={viewOnly} />}
 
-      {/* Top bar — no border, transparent, merged with bg */}
-      <div className="flex items-center justify-between px-4 sm:px-6 h-12 flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          {isPreview && onBack && <button onClick={onBack} className="mr-2 text-[11px] opacity-60 hover:opacity-100" style={{ color: t.textMuted }}>← Назад</button>}
-          {settings.logo ? <img src={settings.logo} alt="" className="w-5 h-5 object-contain flex-shrink-0" /> : (
-            <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: t.accent + '20' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={t.accent} strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div className="sticky top-0 z-20 flex items-center justify-between px-5 sm:px-8 py-4 flex-shrink-0 backdrop-blur-md" style={{ background: t.bg + 'dd' }}>
+        <div className="flex items-center gap-3 min-w-0">
+          {isPreview && onBack && <button onClick={onBack} className="mr-2 text-[11px] opacity-60 hover:opacity-100" style={{ color: t.textMuted }}>←</button>}
+          {settings.logo ? <img src={settings.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0" /> : (
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: t.accent + '20' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.accent} strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </div>
           )}
-          {/* Marquee name */}
-          <div className="overflow-hidden flex-1 ml-1" style={{ maxWidth: '120px' }}>
-            <div className="name-marquee whitespace-nowrap text-[11px] font-medium" style={{ color: t.textMuted }}>{settings.name}</div>
-          </div>
+          <div className="text-[15px] font-semibold" style={{ color: t.text }}>{settings.name}</div>
         </div>
-        {showTimer && <div className="text-[11px] font-mono" style={{ color: expired ? '#ef4444' : t.textMuted }}>{timeLeft}</div>}
+        {showTimer && <div className="text-[12px] font-mono font-bold" style={{ color: expired ? '#ef4444' : t.textMuted }}>{timeLeft}</div>}
       </div>
 
       {/* Content */}

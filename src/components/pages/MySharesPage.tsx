@@ -26,18 +26,43 @@ export const MySharesPage: React.FC<Props> = ({ shares, onRemove, onNavigate, on
 
   const getShareUrl = (id: string) => btoa(id);
 
+  const copyText = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  };
+
+  const fallbackCopy = (text: string) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  };
+
+  const [copied, setCopied] = useState<string | null>(null);
+
   const handleCopyLink = (id: string) => {
     const url = window.location.origin + '/s/' + getShareUrl(id);
-    navigator.clipboard?.writeText(url).catch(() => {});
+    copyText(url);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleShare = (id: string) => {
     const url = window.location.origin + '/s/' + getShareUrl(id);
     const text = 'С Вами поделились файлом';
     if (navigator.share) {
-      navigator.share({ title: text, text: text + '\n' + url }).catch(() => {});
+      navigator.share({ title: text, url }).catch(() => copyText(text + '\n' + url));
     } else {
-      navigator.clipboard?.writeText(text + '\n' + url).catch(() => {});
+      copyText(text + '\n' + url);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
     }
   };
 
@@ -64,9 +89,9 @@ export const MySharesPage: React.FC<Props> = ({ shares, onRemove, onNavigate, on
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button onClick={() => handleCopyLink(item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Ссылка
+                <button onClick={() => handleCopyLink(item.id)} className={`h-6 px-2 rounded text-[9px] font-medium transition-colors flex items-center gap-1 ${copied === item.id ? 'bg-accent/30 text-accent' : 'bg-accent/10 text-accent hover:bg-accent/20'}`}>
+                  {copied === item.id ? '✓' : <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                  {copied === item.id ? 'Скопировано' : 'Ссылка'}
                 </button>
                 <button onClick={() => handleShare(item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>

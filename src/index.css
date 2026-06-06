@@ -42,6 +42,29 @@ body {
 
 input, textarea, select, button { font-family: inherit; }
 
+body.modal-open { overflow: hidden; }
+
+input::placeholder, textarea::placeholder, select::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+}
+
+input:not(:focus):not(:placeholder-shown),
+textarea:not(:focus):not(:placeholder-shown),
+select:not(:focus) {
+  color: var(--color-text-muted);
+}
+
+input:focus, textarea:focus, select:focus {
+  color: var(--color-text);
+}
+
+.btn-done {
+  opacity: 0.6;
+  pointer-events: none;
+  transform: scale(0.98);
+}
+
 .no-select {
   -webkit-user-select: none;
   user-select: none;

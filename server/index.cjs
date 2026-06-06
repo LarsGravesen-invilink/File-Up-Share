@@ -51,7 +51,7 @@ const getStats = () => {
       usedSpaceMB: 0, totalSpaceMB: totalDisk,
       cpu: { model: (cpus[0] || {}).model || 'Unknown', cores: cpus.length, usage: 0 },
       ram: { total: +(t / 1073741824).toFixed(2), used: +((t - fr) / 1073741824).toFixed(2), free: +(fr / 1073741824).toFixed(2) },
-      ip: '127.0.0.1', hostname: os.hostname()
+      ip: (Object.values(os.networkInterfaces()).flat().filter(i => i && !i.internal && i.family === 'IPv4')[0] || {}).address || '127.0.0.1', hostname: os.hostname()
     };
   } catch {
     return { filesInShare: 0, uploadPages: 0, receivedFiles: 0, usedSpaceMB: 0, totalSpaceMB: 51200, cpu: {}, ram: {}, ip: '127.0.0.1', hostname: '' };
@@ -111,6 +111,28 @@ const server = http.createServer(async (req, res) => {
     if (url.match(/^\/api\/received\//) && method === 'DELETE') { const rid = url.split('/').pop(); received = received.filter(r => r.id !== rid); writeJSON('received.json', received); return json(res, { received }); }
 
     if (url === '/api/stealth' && method === 'POST') { const b = await parseBody(req); try { if (b.on) fs.writeFileSync(fp('stealth.lock'), '1'); else fs.unlinkSync(fp('stealth.lock')); } catch {} return json(res, { ok: true }); }
+
+    if (url.match(/^\/api\/public\/share\//) && method === 'GET') {
+      const encoded = url.split('/').pop();
+      try {
+        const sid = Buffer.from(encoded, 'base64').toString();
+        const share = shares.find(s => s.id === sid);
+        if (share) return json(res, { share, settings: { name: settings.name, logo: settings.logo, pageTheme: settings.pageTheme, adEnabled: settings.adEnabled, adText: settings.adText, hideLifetimeOnPage: settings.hideLifetimeOnPage, sharePasswordEnabled: settings.sharePasswordEnabled, sharePassword: settings.sharePassword } });
+      } catch {}
+      res.statusCode = 404;
+      return json(res, { error: 'not found' });
+    }
+
+    if (url.match(/^\/api\/public\/upload\//) && method === 'GET') {
+      const encoded = url.split('/').pop();
+      try {
+        const uid = Buffer.from(encoded, 'base64').toString();
+        const upload = uploads.find(u => u.id === uid);
+        if (upload) return json(res, { upload, settings: { name: settings.name, logo: settings.logo, pageTheme: settings.pageTheme, adEnabled: settings.adEnabled, adText: settings.adText, hideLifetimeOnPage: settings.hideLifetimeOnPage, uploadPasswordEnabled: settings.uploadPasswordEnabled, uploadPassword: settings.uploadPassword } });
+      } catch {}
+      res.statusCode = 404;
+      return json(res, { error: 'not found' });
+    }
 
     res.statusCode = 404;
     json(res, { error: 'not found' });

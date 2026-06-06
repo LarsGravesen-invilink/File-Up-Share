@@ -148,19 +148,17 @@ export const UploadView: React.FC<Props> = ({ item, settings, onBack, isPreview 
   return (
     <div className="min-h-dvh flex flex-col select-none share-bg" style={{ color: theme.text }}>
       <style>{`@keyframes bg-move{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}.share-bg{background:linear-gradient(135deg,${theme.bg},${theme.bg}dd,${theme.bg}bb,${theme.bg});background-size:400% 400%;animation:bg-move 15s ease infinite}@keyframes marquee-name{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}.name-marquee{animation:marquee-name 8s linear infinite}`}</style>
-      <div className="flex items-center justify-between px-4 sm:px-6 h-12 flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          {isPreview && onBack && <button onClick={onBack} className="mr-2 text-[11px] opacity-60 hover:opacity-100" style={{ color: theme.textMuted }}>← Назад</button>}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-5 sm:px-8 py-4 flex-shrink-0 backdrop-blur-md" style={{ background: theme.bg + 'dd' }}>
+        <div className="flex items-center gap-3 min-w-0">
+          {isPreview && onBack && <button onClick={onBack} className="mr-2 text-[11px] opacity-60 hover:opacity-100" style={{ color: theme.textMuted }}>←</button>}
           {settings.logo ? <img src={settings.logo} alt="" className="w-5 h-5 object-contain flex-shrink-0" /> : (
-            <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: theme.accent + '20' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={theme.accent} strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: theme.accent + '20' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme.accent} strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </div>
           )}
-          <div className="overflow-hidden flex-1 ml-1" style={{ maxWidth: '120px' }}>
-            <div className="name-marquee whitespace-nowrap text-[11px] font-medium" style={{ color: theme.textMuted }}>{settings.name}</div>
-          </div>
+          <div className="text-[15px] font-semibold" style={{ color: theme.text }}>{settings.name}</div>
         </div>
-        {showTimer && <div className="text-[11px] font-mono" style={{ color: expired ? '#ef4444' : theme.textMuted }}>{timeLeft}</div>}
+        {showTimer && <div className="text-[12px] font-mono font-bold" style={{ color: expired ? '#ef4444' : theme.textMuted }}>{timeLeft}</div>}
       </div>
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-6 pb-4">
@@ -264,8 +262,8 @@ export const UploadView: React.FC<Props> = ({ item, settings, onBack, isPreview 
                 <button
                   onClick={handleUpload}
                   disabled={uploading}
-                  className="w-full mt-4 h-10 rounded-lg text-[12px] font-semibold disabled:opacity-50 transition-colors"
-                  style={{ background: theme.accent, color: theme.accentText }}
+                  className="w-full mt-4 h-10 rounded-lg text-[13px] font-semibold disabled:opacity-50 transition-opacity hover:opacity-80"
+                  style={{ background: theme.text + '18', color: theme.text, border: `1px solid ${theme.text}25` }}
                 >
                   {uploading ? 'Загрузка...' : `Загрузить ${files.length} файл${files.length > 1 ? 'а/ов' : ''}`}
                 </button>

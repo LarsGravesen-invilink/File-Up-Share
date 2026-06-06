@@ -162,8 +162,8 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
         <button onClick={handlePreviewClick} className="flex-1 h-10 rounded-lg border border-border text-[12px] font-medium text-text-secondary hover:text-text transition-colors">
           Предпросмотр
         </button>
-        <button onClick={handleCreate} disabled={creating} className="flex-1 h-10 rounded-lg bg-accent/90 text-bg text-[12px] font-semibold hover:bg-accent disabled:opacity-30 transition-colors shadow-[0_0_15px_#22c55e15]">
-          {creating ? 'Публикация...' : 'Опубликовать'}
+        <button onClick={handleCreate} disabled={creating} className="flex-1 h-10 rounded-lg bg-accent/90 text-bg text-[12px] font-semibold hover:bg-accent active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all shadow-[0_0_15px_#22c55e15]">
+          {creating ? '...' : 'Опубликовать'}
         </button>
       </div>
     </div>
