@@ -51,7 +51,7 @@ ask_retry() {
     printf "\n  ${D}R — повторить  |  Q — выйти${N}  "
     IFS= read -r REPLY < /dev/tty
     if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then
-        clear
+        cls
         exit 0
     fi
 }
@@ -91,6 +91,15 @@ upbar() {
     printf "\r  \e[0;32m%s\e[0m \e[0;32m100%%\e[0m  %s\e[0m\n" "$bar" "$lbl"
 }
 
+cls() {
+    clear
+    printf "\n"
+    printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
+    printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
+    printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n"
+    printf "\n"
+}
+
 run_step() {
     local label="$1"
     shift
@@ -99,12 +108,7 @@ run_step() {
     printf "\033[1A\r  \e[0;32m✓\e[0m %s                                    \n" "$label"
 }
 
-clear
-printf "\n"
-printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
-printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
-printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n"
-printf "\n"
+cls
 printf "  \e[2mПанель управления раздачами и загрузками\e[0m\n"
 printf "  \e[2mфайлов на вашем Linux VPS\e[0m\n"
 printf "\n"
@@ -127,8 +131,8 @@ while true; do
         break
     fi
 
-    clear
-    printf "\n\n  \e[1;37mПроверка \e[0;36m%s\e[0m\n\n" "$DOMAIN"
+    cls
+    printf "  \e[1;37mПроверка \e[0;36m%s\e[0m\n\n" "$DOMAIN"
 
     DNS_OK=0
     if host "$DOMAIN" >/dev/null 2>&1; then
@@ -138,11 +142,7 @@ while true; do
         printf "  \e[0;31m✗\e[0m DNS не найден\n"
         printf "\n  \e[0;31mДомен не указывает на этот сервер\e[0m\n"
         ask_retry
-        clear
-        printf "\n"
-        printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
-        printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
-        printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n\n"
+        cls
         continue
     fi
 
@@ -153,16 +153,12 @@ while true; do
         printf "  \e[2mНазначен порт: \e[1;37m%s\e[0m\n" "$PANEL_PORT"
         printf "\n  \e[2mR — повторить  |  H — продолжить http://%s:%s  |  Q — выйти\e[0m  " "$DOMAIN" "$PANEL_PORT"
         IFS= read -r REPLY < /dev/tty
-        if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then clear; exit 0; fi
+        if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then cls; exit 0; fi
         if [ "$REPLY" = "H" ] || [ "$REPLY" = "h" ]; then
             USE_SSL=0
             break
         fi
-        clear
-        printf "\n"
-        printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
-        printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
-        printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n\n"
+        cls
         continue
     fi
 
@@ -201,23 +197,19 @@ while true; do
     printf "\n  \e[2mR — повторить  |  H — продолжить без SSL  |  Q — выйти\e[0m  "
     IFS= read -r REPLY < /dev/tty
     if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then
-        clear
+        cls
         exit 0
     fi
     if [ "$REPLY" = "H" ] || [ "$REPLY" = "h" ]; then
         USE_SSL=0
         break
     fi
-    clear
-    printf "\n"
-    printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
-    printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
-    printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n\n"
-    continue
+        cls
+        continue
 done
 
-clear
-printf "\n\n  \e[1;37mПодготовка системы\e[0m\n\n"
+cls
+printf "  \e[1;37mПодготовка системы\e[0m\n\n"
 
 printf "  \e[2mОбновление пакетов\e[0m\n"
 apt-get update -qq >/dev/null 2>&1 || true
@@ -241,8 +233,8 @@ fi
 pbar "Зависимости"
 ask "Enter — начать установку"
 
-clear
-printf "\n\n  \e[1;37mУстановка \e[0;36mFileUpShare\e[0m\n\n"
+cls
+printf "  \e[1;37mУстановка \e[0;36mFileUpShare\e[0m\n\n"
 
 mkdir -p "$INSTALL_DIR" "${DATA_DIR}/shares" "${DATA_DIR}/received" "$SECRET_DIR"
 
@@ -265,46 +257,68 @@ if [ ! -f "${INSTALL_DIR}/dist/index.html" ]; then
     fi
 fi
 
+LISTEN_PORT=80
+if [ "$PANEL_PORT" -gt 0 ] 2>/dev/null; then LISTEN_PORT=$PANEL_PORT; fi
+
+printf "  \e[2mНастройка Nginx\e[0m\n"
+
 if [ "$USE_SSL" -eq 1 ]; then
-    run_step "Настройка Nginx" bash -c "
-printf 'server {
+    cat > "${NGINX_CONF}" << 'NGINX_BLOCK_END'
+server {
     listen 80;
-    server_name ${DOMAIN};
-    return 301 https://\$host\$request_uri;
+    server_name DOMAIN_PLACEHOLDER;
+    return 301 https://$host$request_uri;
 }
 server {
     listen 443 ssl http2;
-    server_name ${DOMAIN};
-    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    root ${INSTALL_DIR}/dist;
+    server_name DOMAIN_PLACEHOLDER;
+    ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
+    root INSTALL_PLACEHOLDER/dist;
     index index.html;
-    location / { try_files \$uri \$uri/ /index.html; }
-    location /api/ { proxy_pass http://127.0.0.1:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection upgrade; proxy_set_header Host \$host; }
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
     client_max_body_size 500M;
 }
-' > ${NGINX_CONF}
-ln -sf ${NGINX_CONF} ${NGINX_LINK}
-rm -f /etc/nginx/sites-enabled/default
-nginx -t >/dev/null 2>&1; true"
+NGINX_BLOCK_END
+    sed -i "s|DOMAIN_PLACEHOLDER|${DOMAIN}|g" "${NGINX_CONF}"
+    sed -i "s|INSTALL_PLACEHOLDER|${INSTALL_DIR}|g" "${NGINX_CONF}"
 else
-    LISTEN_PORT=80
-    if [ "$PANEL_PORT" -gt 0 ] 2>/dev/null; then LISTEN_PORT=$PANEL_PORT; fi
-    run_step "Настройка Nginx" bash -c "
-printf 'server {
+    cat > "${NGINX_CONF}" << NGINX_BLOCK_END
+server {
     listen ${LISTEN_PORT};
     server_name _;
     root ${INSTALL_DIR}/dist;
     index index.html;
-    location / { try_files \$uri \$uri/ /index.html; }
-    location /api/ { proxy_pass http://127.0.0.1:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection upgrade; proxy_set_header Host \$host; }
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
     client_max_body_size 500M;
 }
-' > ${NGINX_CONF}
-ln -sf ${NGINX_CONF} ${NGINX_LINK}
-rm -f /etc/nginx/sites-enabled/default
-nginx -t >/dev/null 2>&1; true"
+NGINX_BLOCK_END
 fi
+
+ln -sf "${NGINX_CONF}" "${NGINX_LINK}"
+rm -f /etc/nginx/sites-enabled/default
+nginx -t >/dev/null 2>&1 || true
+printf "\033[1A\r  \e[0;32m✓\e[0m Настройка Nginx                              \n"
 
 run_step "Создание сервиса" bash -c "
 printf '[Unit]
@@ -352,8 +366,8 @@ printf '{\"accessDomain\":\"%s\",\"accessPort\":%s,\"accessSSL\":%s,\"accessMode
 pbar "Финализация"
 ask "Enter — продолжить"
 
-clear
-printf "\n\n  \e[1;37mПроверка целостности\e[0m\n\n"
+cls
+printf "  \e[1;37mПроверка целостности\e[0m\n\n"
 upbar "Проверка"
 
 CVER="1.0.1"
@@ -396,10 +410,9 @@ else
     URL="http://${DOMAIN}"
 fi
 
-clear
-printf "\n"
+cls
 printf "  \e[0;36m══════════════════════════════════════════\e[0m\n"
-printf "  \e[1;32m  FileUpShare успешно запущен\e[0m\n"
+printf "  \e[1;32m  Успешно запущен\e[0m\n"
 printf "  \e[0;36m══════════════════════════════════════════\e[0m\n"
 printf "\n"
 printf "  \e[1;37mПанель\e[0m        \e[0;36m%s\e[0m\n" "$URL"
