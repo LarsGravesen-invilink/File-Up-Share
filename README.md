@@ -28,7 +28,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-U
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/update.sh)
 ```
-## Или короткая команда на сервере:
+## Или короткая команда обновления на сервере:
 
 ```bash
 update-fileupshare
@@ -41,7 +41,7 @@ update-fileupshare
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/uninstall.sh)
 ```
-## Или короткая команда на сервере:
+## Или короткая команда удаления на сервере:
 
 ```bash
 uninstall-fileupshare
