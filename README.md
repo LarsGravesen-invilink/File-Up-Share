@@ -18,7 +18,7 @@
 [Инструкция по управлению](instruction.md)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/install.sh)
 ```
 
 ## Обновление
