@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generateId, type UploadPage, type Settings } from '../../preview/store';
+import { generateId, type UploadPage, type Settings } from '../../types';
 
 interface Props {
   onCreateUpload: (item: UploadPage) => void;

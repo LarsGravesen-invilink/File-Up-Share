@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Settings } from '../../preview/store';
+import type { Settings } from '../../types';
 
 interface Props {
   settings: Settings;

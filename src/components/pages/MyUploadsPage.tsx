@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { UploadPage as UploadPageType } from '../../preview/store';
+import type { UploadPage as UploadPageType } from '../../types';
 import type { Page } from '../Sidebar';
 
 interface Props {

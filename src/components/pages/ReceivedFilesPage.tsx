@@ -1,6 +1,6 @@
 import React from 'react';
-import type { ReceivedFile } from '../../preview/store';
-import { formatBytes } from '../../preview/store';
+import type { ReceivedFile } from '../../types';
+import { formatBytes } from '../../types';
 
 interface Props {
   files: ReceivedFile[];

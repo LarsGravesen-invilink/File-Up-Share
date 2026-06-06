@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { Settings } from '../../preview/store';
-import { pageThemes, getTheme } from '../../preview/store';
+import type { Settings } from '../../types';
+import { pageThemes, getTheme } from '../../types';
 
 interface Props {
   settings: Settings;

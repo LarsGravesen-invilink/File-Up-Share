@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { generateId, formatBytes, type ShareItem, type ShareFile, type Settings } from '../../preview/store';
+import { generateId, formatBytes, type ShareItem, type ShareFile, type Settings } from '../../types';
 
 interface Props {
   onCreateShare: (item: ShareItem) => void;

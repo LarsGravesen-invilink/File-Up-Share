@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { UploadPage, Settings } from '../preview/store';
-import { formatBytes, getTheme } from '../preview/store';
+import type { UploadPage, Settings } from '../types';
+import { formatBytes, getTheme } from '../types';
 
 interface Props {
   item: UploadPage;

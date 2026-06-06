@@ -13,7 +13,7 @@ import { TelegramPage } from './pages/TelegramPage';
 import { ShareView } from './ShareView';
 import { UploadView } from './UploadView';
 import { QuotaModal } from './QuotaModal';
-import { type Settings, type Stats, type ShareItem, type UploadPage as UPT, type ReceivedFile, isQuotaExceeded, uiScales, headerScales } from '../preview/store';
+import { type Settings, type Stats, type ShareItem, type UploadPage as UPT, type ReceivedFile, isQuotaExceeded, uiScales, headerScales } from '../types';
 
 const meta: Record<Page, { label: string }> = {
   'info': { label: 'Информация' },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { ShareItem, ShareFile, Settings } from '../preview/store';
-import { getTheme, formatBytes } from '../preview/store';
+import type { ShareItem, ShareFile, Settings } from '../types';
+import { getTheme, formatBytes } from '../types';
 
 interface Props { item: ShareItem; settings: Settings; onBack?: () => void; isPreview?: boolean; }
 

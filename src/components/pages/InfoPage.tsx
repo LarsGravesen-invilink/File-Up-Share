@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatSize, formatSizeUnit, type Stats, type Settings } from '../../preview/store';
+import { formatSize, formatSizeUnit, type Stats, type Settings } from '../../types';
 import type { Page } from '../Sidebar';
 
 interface Props {

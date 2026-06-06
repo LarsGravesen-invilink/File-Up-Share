@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { ShareItem } from '../../preview/store';
-import { formatBytes } from '../../preview/store';
+import type { ShareItem } from '../../types';
+import { formatBytes } from '../../types';
 import type { Page } from '../Sidebar';
 
 interface Props {

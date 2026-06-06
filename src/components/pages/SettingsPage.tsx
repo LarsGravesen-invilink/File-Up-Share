@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import type { Settings } from '../../preview/store';
-import { russianTimezones, uiScales, headerScales } from '../../preview/store';
+import type { Settings } from '../../types';
+import { russianTimezones, uiScales, headerScales } from '../../types';
 
 interface Props {
   settings: Settings;
