@@ -6,28 +6,28 @@ SERVICE_NAME="fileupshare"
 NGINX_CONF="/etc/nginx/sites-available/${SERVICE_NAME}"
 NGINX_LINK="/etc/nginx/sites-enabled/${SERVICE_NAME}"
 
-R='\e[0;31m'
-G='\e[0;32m'
-W='\e[1;37m'
-D='\e[2m'
-B='\e[1m'
-N='\e[0m'
-
 clear
-printf "\n\n  ${B}${R}Удаление FileUpShare${N}\n\n"
-printf "  ${W}Будут удалены:${N}\n\n"
-printf "  ${D}  Сервис и конфигурация Nginx${N}\n"
-printf "  ${D}  Приложение %s${N}\n" "$INSTALL_DIR"
-printf "  ${D}  Все данные %s${N}\n" "$DATA_DIR"
-printf "  ${D}  Все раздаваемые и принятые файлы${N}\n"
-printf "  ${D}  Команды unlock-my-panel, update-fileupshare${N}\n"
-printf "  ${D}  Systemd сервис${N}\n\n"
-printf "  ${B}${R}Это действие необратимо!${N}\n\n"
-printf "  ${W}Введите ${B}YES${N}${W} для подтверждения: ${N}"
-read -r confirm
+printf "\n"
+printf "  \e[0;31m══════════════════════════════════════════\e[0m\n"
+printf "  \e[1;31m  Удаление FileUpShare\e[0m\n"
+printf "  \e[0;31m══════════════════════════════════════════\e[0m\n"
+printf "\n"
+printf "  \e[1;37mБудут удалены:\e[0m\n\n"
+printf "  \e[2m  Сервис и конфигурация Nginx\e[0m\n"
+printf "  \e[2m  Приложение %s\e[0m\n" "$INSTALL_DIR"
+printf "  \e[2m  Все данные %s\e[0m\n" "$DATA_DIR"
+printf "  \e[2m  Все раздаваемые и принятые файлы\e[0m\n"
+printf "  \e[2m  Команды unlock-my-panel, update-fileupshare\e[0m\n"
+printf "  \e[2m  Systemd сервис\e[0m\n"
+printf "\n"
+printf "  \e[1;31mЭто действие необратимо!\e[0m\n"
+printf "\n"
+printf "  \e[1;37mВведите \e[1mYES\e[0m\e[1;37m для подтверждения или \e[1mNO\e[0m\e[1;37m для отмены: \e[0m"
+IFS= read -r confirm < /dev/tty
 
 if [ "$confirm" != "YES" ]; then
     clear
+    printf "\n  \e[2mОтменено\e[0m\n\n"
     exit 0
 fi
 
@@ -53,4 +53,8 @@ rm -f /usr/local/bin/update-fileupshare
 rm -f /usr/local/bin/uninstall-fileupshare
 
 clear
-printf "\n\n  ${G}FileUpShare полностью удалён${N}\n\n"
+printf "\n"
+printf "  \e[0;32m══════════════════════════════════════════\e[0m\n"
+printf "  \e[0;32m  FileUpShare полностью удалён\e[0m\n"
+printf "  \e[0;32m══════════════════════════════════════════\e[0m\n"
+printf "\n"
