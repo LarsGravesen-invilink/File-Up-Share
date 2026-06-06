@@ -130,24 +130,52 @@ while true; do
 
     pbar "Проверка SSL"
 
-    if [ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
-        printf "  \e[2mУстановка SSL...\e[0m\n"
+    SSL_OK=0
+    if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
+        printf "  \e[0;32m✓\e[0m SSL найден\n"
+        SSL_OK=1
+    else
+        printf "  \e[2mУстановка Certbot...\e[0m\n"
         apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
+        printf "\033[1A\r  \e[0;32m✓\e[0m Certbot                              \n"
+
+        printf "  \e[2mПолучение сертификата...\e[0m\n"
+        systemctl stop nginx >/dev/null 2>&1 || true
         if certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --email "admin@${DOMAIN}" >/dev/null 2>&1; then
             printf "\033[1A\r  \e[0;32m✓\e[0m SSL установлен                      \n"
-            USE_SSL=1
+            SSL_OK=1
         else
-            printf "\033[1A\r  \e[1;33m!\e[0m SSL не удалось получить              \n"
-            printf "\n  \e[1;33mБудет использован HTTP без шифрования\e[0m\n"
-            USE_SSL=0
+            printf "\033[1A\r  \e[0;31m✗\e[0m SSL не удалось получить              \n"
+            printf "\n  \e[0;31mВозможные причины:\e[0m\n"
+            printf "  \e[2m  Порт 80 занят другим процессом\e[0m\n"
+            printf "  \e[2m  Домен не указывает на этот IP\e[0m\n"
+            printf "  \e[2m  Firewall блокирует порт 80\e[0m\n"
         fi
-    else
-        printf "  \e[0;32m✓\e[0m SSL найден\n"
-        USE_SSL=1
+        systemctl start nginx >/dev/null 2>&1 || true
     fi
 
-    ask "Enter — продолжить"
-    break
+    if [ "$SSL_OK" -eq 1 ]; then
+        USE_SSL=1
+        ask "Enter — продолжить"
+        break
+    fi
+
+    printf "\n  \e[2mR — повторить  |  H — продолжить без SSL  |  Q — выйти\e[0m  "
+    IFS= read -r REPLY < /dev/tty
+    if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then
+        clear
+        exit 0
+    fi
+    if [ "$REPLY" = "H" ] || [ "$REPLY" = "h" ]; then
+        USE_SSL=0
+        break
+    fi
+    clear
+    printf "\n"
+    printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
+    printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
+    printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n\n"
+    continue
 done
 
 clear
