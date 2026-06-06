@@ -320,8 +320,8 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t >/dev/null 2>&1 || true
 printf "\033[1A\r  \e[0;32m✓\e[0m Настройка Nginx                              \n"
 
-run_step "Создание сервиса" bash -c "
-printf '[Unit]
+cat > "/etc/systemd/system/${SERVICE_NAME}.service" << SVCEND
+[Unit]
 Description=FileUpShare
 After=network.target
 
@@ -329,17 +329,18 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=/usr/bin/node ${INSTALL_DIR}/server/index.js
+ExecStart=$(which node) ${INSTALL_DIR}/server/index.js
 Restart=always
-RestartSec=5
+RestartSec=3
 Environment=NODE_ENV=production
 Environment=DATA_DIR=${DATA_DIR}
 Environment=PORT=3000
 
 [Install]
 WantedBy=multi-user.target
-' > /etc/systemd/system/${SERVICE_NAME}.service
-systemctl daemon-reload"
+SVCEND
+systemctl daemon-reload
+printf "  \e[0;32m✓\e[0m Создание сервиса\n"
 
 run_step "Настройка прав" bash -c "chmod 700 ${SECRET_DIR}; chown -R root:root ${INSTALL_DIR} ${DATA_DIR}"
 
@@ -360,8 +361,15 @@ ln -sf ${INSTALL_DIR}/update.sh /usr/local/bin/update-fileupshare
 ln -sf ${INSTALL_DIR}/uninstall.sh /usr/local/bin/uninstall-fileupshare
 rm -rf /tmp/File-Up-Share; true"
 
-run_step "Конфигурация" bash -c "
-printf '{\"accessDomain\":\"%s\",\"accessPort\":%s,\"accessSSL\":%s,\"accessMode\":\"%s\"}\n' '${DOMAIN}' '${ACCESS_PORT}' '${ACCESS_SSL}' '${ACCESS_MODE}' > ${DATA_DIR}/settings.json; true"
+cat > "${DATA_DIR}/settings.json" << SETTINGS_END
+{
+  "accessDomain": "${DOMAIN}",
+  "accessPort": ${ACCESS_PORT},
+  "accessSSL": ${ACCESS_SSL},
+  "accessMode": "${ACCESS_MODE}"
+}
+SETTINGS_END
+printf "  \e[0;32m✓\e[0m Конфигурация\n"
 
 pbar "Финализация"
 ask "Enter — продолжить"
