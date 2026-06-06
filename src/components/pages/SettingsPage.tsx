@@ -50,6 +50,118 @@ const fmtTime = (raw: string, prev: string): string => {
 const inputCls = "w-full h-9 px-3 rounded-md bg-surface/60 border border-border text-[13px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-all";
 const disabledCls = "w-full h-9 px-3 rounded-md bg-surface/20 border border-border/50 text-[13px] text-text-muted/50 outline-none cursor-not-allowed";
 
+const AccessSettings: React.FC<{ settings: Settings; onUpdate: (s: Partial<Settings>) => void }> = ({ settings, onUpdate }) => {
+  const [domain, setDomain] = useState(settings.accessDomain || '');
+  const [port, setPort] = useState(settings.accessPort ? settings.accessPort.toString() : '');
+  const [ssl, setSsl] = useState(settings.accessSSL ?? true);
+  const [err, setErr] = useState('');
+  const [shake, setShake] = useState(false);
+  const [modal, setModal] = useState(false);
+
+  const needsPort = settings.accessMode === 'ip' || !settings.accessSSL;
+  const changed = domain !== (settings.accessDomain || '') || port !== (settings.accessPort ? settings.accessPort.toString() : '') || ssl !== (settings.accessSSL ?? true);
+
+  const validate = () => {
+    if (domain && !/^[a-zA-Z0-9][a-zA-Z0-9\-\.]*\.[a-zA-Z]{2,}$/.test(domain)) {
+      setErr('Некорректный формат домена');
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return false;
+    }
+    if (port) {
+      const p = parseInt(port);
+      if (isNaN(p) || p < 1024 || p > 65535) {
+        setErr('Порт: 1024–65535');
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const apply = () => {
+    if (!validate()) return;
+    setModal(true);
+  };
+
+  const confirm = () => {
+    setModal(false);
+    setErr('');
+    const upd: Partial<Settings> = {};
+    if (domain) {
+      upd.accessDomain = domain;
+      upd.accessMode = 'domain';
+      upd.accessSSL = ssl;
+    }
+    if (port) upd.accessPort = parseInt(port);
+    onUpdate(upd);
+  };
+
+  return (
+    <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3">
+      <h3 className="text-[12px] font-semibold text-text flex items-center gap-2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Доступ к панели
+      </h3>
+
+      <div>
+        <label className="block text-[10px] text-text-muted mb-1">Домен</label>
+        <div style={{ animation: shake && err.includes('домен') ? 'shake 0.4s ease-in-out' : undefined }}>
+          <input type="text" value={domain} onChange={e => { setDomain(e.target.value); setErr(''); }} placeholder={settings.accessDomain || 'example.com'} className={`${inputCls} font-mono text-[11px] ${err.includes('домен') ? 'border-[#ef4444] text-[#ef4444]' : ''}`} />
+        </div>
+      </div>
+
+      {settings.accessMode === 'domain' && (
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[11px] text-text">Получить SSL</div>
+            <div className="text-[9px] text-text-muted">HTTPS шифрование</div>
+          </div>
+          <button onClick={() => setSsl(!ssl)} className={`w-8 h-4 rounded-full relative transition-colors ${ssl ? 'bg-accent' : 'bg-border'}`}>
+            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${ssl ? 'left-[18px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+      )}
+
+      {needsPort && (
+        <div>
+          <label className="block text-[10px] text-text-muted mb-1">Порт</label>
+          <div style={{ animation: shake && err.includes('Порт') ? 'shake 0.4s ease-in-out' : undefined }}>
+            <input type="text" inputMode="numeric" value={port} onChange={e => { setPort(e.target.value.replace(/\D/g, '').slice(0, 5)); setErr(''); }} placeholder={settings.accessPort ? settings.accessPort.toString() : '3000'} className={`${inputCls} w-20 text-center font-mono text-[11px] ${err.includes('Порт') ? 'border-[#ef4444] text-[#ef4444]' : ''}`} />
+          </div>
+          <p className="text-[9px] text-text-muted/50 mt-1">1024–65535</p>
+        </div>
+      )}
+
+      {err && <p className="text-[9px] text-[#ef4444]">{err}</p>}
+
+      {changed && (
+        <button onClick={apply} className="w-full h-9 rounded-md bg-accent/90 text-bg text-[11px] font-medium hover:bg-accent transition-colors">
+          Применить
+        </button>
+      )}
+
+      {modal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setModal(false)} />
+          <div className="relative w-full max-w-sm rounded-xl border border-accent/20 bg-surface/95 backdrop-blur-xl p-5 animate-in">
+            <div className="w-10 h-10 rounded-full bg-[#eab308]/10 border border-[#eab308]/20 flex items-center justify-center mx-auto mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3 className="text-[13px] font-semibold text-text text-center mb-2">Изменение доступа</h3>
+            <p className="text-[11px] text-text-muted text-center mb-4">Панель будет перезапущена с новыми параметрами. Текущая сессия завершится.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setModal(false)} className="flex-1 h-9 rounded-md border border-border text-[11px] text-text-muted">Отмена</button>
+              <button onClick={confirm} className="flex-1 h-9 rounded-md bg-accent text-bg text-[11px] font-medium">Применить</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const STORAGE_PREFIX = '/var/lib/fileupshare/';
 
 const PathField: React.FC<{ label: string; suffix: string; onChange: (v: string) => void; changed: boolean; onApply: () => void }> = ({ label, suffix, onChange, changed, onApply }) => (
@@ -258,6 +370,9 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdate }) => {
         )}
         </div>
       </div>
+
+      {/* Access Settings */}
+      <AccessSettings settings={settings} onUpdate={onUpdate} />
 
       {/* UI Scale */}
       <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3">

@@ -62,6 +62,11 @@ export const Panel: React.FC<Props> = ({
   const [previewUpload, setPreviewUpload] = useState<UPT | null>(null);
   const [linkPopup, setLinkPopup] = useState<LinkPopup | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [httpWarning, setHttpWarning] = useState(() => {
+    const isHttp = !settings.accessSSL && settings.accessMode === 'domain';
+    const shown = sessionStorage.getItem('fus_http_warn');
+    return isHttp && !shown;
+  });
 
   const zoomValue = uiScales[settings.uiScale]?.rem || 1;
   const hs = headerScales[settings.headerScale] || headerScales.default;
@@ -218,6 +223,22 @@ export const Panel: React.FC<Props> = ({
             </div>
             <button onClick={() => setLinkPopup(null)} className="w-full h-9 rounded-md border border-border text-[12px] text-text-muted hover:text-text transition-colors">
               Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
+      {httpWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-sm rounded-xl border border-[#eab308]/20 bg-surface/95 backdrop-blur-xl p-5 animate-in">
+            <div className="w-10 h-10 rounded-full bg-[#eab308]/10 border border-[#eab308]/20 flex items-center justify-center mx-auto mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3 className="text-[13px] font-semibold text-text text-center mb-2">Небезопасное соединение</h3>
+            <p className="text-[11px] text-text-muted text-center mb-4">Панель работает без SSL шифрования. Данные передаются в открытом виде. Рекомендуется настроить HTTPS.</p>
+            <button onClick={() => { setHttpWarning(false); sessionStorage.setItem('fus_http_warn', '1'); }} className="w-full h-9 rounded-md bg-[#eab308]/20 text-[#eab308] text-[11px] font-medium hover:bg-[#eab308]/30 transition-colors">
+              Продолжить
             </button>
           </div>
         </div>

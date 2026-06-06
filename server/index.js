@@ -19,7 +19,8 @@ const defaults = {
   pageTheme: 'default', useCustomTime: true, customDate: '', customTime: '', timezone: 'Europe/Moscow',
   uiScale: 'default', headerScale: 'default', panelTheme: 'dark', stealthEnabled: false,
   storagePath: '/var/lib/fileupshare/shares', receivedPath: '/var/lib/fileupshare/received',
-  botPollInterval: 3, botPollUnit: 'sec'
+  botPollInterval: 3, botPollUnit: 'sec',
+  accessDomain: '', accessPort: 3000, accessSSL: false, accessMode: 'ip'
 };
 
 let settings = { ...defaults, ...read('settings.json', {}) };

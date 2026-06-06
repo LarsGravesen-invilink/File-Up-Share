@@ -20,6 +20,22 @@ N='\e[0m'
 
 DOMAIN=""
 USE_SSL=0
+PANEL_PORT=0
+
+is_port_free() {
+    ! ss -tlnp 2>/dev/null | grep -q ":$1 " && ! netstat -tlnp 2>/dev/null | grep -q ":$1 "
+}
+
+random_free_port() {
+    local p
+    while true; do
+        p=$((RANDOM % 2001 + 3000))
+        if is_port_free "$p"; then
+            echo "$p"
+            return
+        fi
+    done
+}
 
 ask() {
     printf "  ${D}%s${N}" "$1"
@@ -101,7 +117,9 @@ while true; do
     DOMAIN="$REPLY"
 
     if [ -z "$DOMAIN" ]; then
+        PANEL_PORT=$(random_free_port)
         printf "\n  \e[1;33mБудет использован IP сервера без HTTPS\e[0m\n"
+        printf "  \e[2mНазначен порт: \e[1;37m%s\e[0m\n" "$PANEL_PORT"
         ask "Enter — продолжить"
         DOMAIN="$(hostname -I 2>/dev/null | awk '{print $1}')"
         if [ -z "$DOMAIN" ]; then DOMAIN="localhost"; fi
@@ -120,6 +138,26 @@ while true; do
         printf "  \e[0;31m✗\e[0m DNS не найден\n"
         printf "\n  \e[0;31mДомен не указывает на этот сервер\e[0m\n"
         ask_retry
+        clear
+        printf "\n"
+        printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
+        printf "  \e[0;36m          \e[1;37mF i l e U p S h a r e\e[0m\n"
+        printf "  \e[0;36m╚══════════════════════════════════════════╝\e[0m\n\n"
+        continue
+    fi
+
+    if ! is_port_free 80 || ! is_port_free 443; then
+        printf "  \e[1;33m!\e[0m Порты 80/443 заняты\n"
+        printf "\n  \e[1;33mSSL невозможен, порты заняты другим сервисом\e[0m\n"
+        PANEL_PORT=$(random_free_port)
+        printf "  \e[2mНазначен порт: \e[1;37m%s\e[0m\n" "$PANEL_PORT"
+        printf "\n  \e[2mR — повторить  |  H — продолжить http://%s:%s  |  Q — выйти\e[0m  " "$DOMAIN" "$PANEL_PORT"
+        IFS= read -r REPLY < /dev/tty
+        if [ "$REPLY" = "Q" ] || [ "$REPLY" = "q" ]; then clear; exit 0; fi
+        if [ "$REPLY" = "H" ] || [ "$REPLY" = "h" ]; then
+            USE_SSL=0
+            break
+        fi
         clear
         printf "\n"
         printf "  \e[0;36m╔══════════════════════════════════════════╗\e[0m\n"
@@ -236,9 +274,11 @@ ln -sf ${NGINX_CONF} ${NGINX_LINK}
 rm -f /etc/nginx/sites-enabled/default
 nginx -t >/dev/null 2>&1; true"
 else
+    LISTEN_PORT=80
+    if [ "$PANEL_PORT" -gt 0 ] 2>/dev/null; then LISTEN_PORT=$PANEL_PORT; fi
     run_step "Настройка Nginx" bash -c "
 printf 'server {
-    listen 80;
+    listen ${LISTEN_PORT};
     server_name _;
     root ${INSTALL_DIR}/dist;
     index index.html;
@@ -275,6 +315,15 @@ systemctl daemon-reload"
 
 run_step "Настройка прав" bash -c "chmod 700 ${SECRET_DIR}; chown -R root:root ${INSTALL_DIR} ${DATA_DIR}"
 
+ACCESS_MODE="ip"
+ACCESS_PORT="${PANEL_PORT:-80}"
+ACCESS_SSL="false"
+if [ "$USE_SSL" -eq 1 ]; then
+    ACCESS_MODE="domain"
+    ACCESS_SSL="true"
+    ACCESS_PORT="443"
+fi
+
 run_step "Регистрация команд" bash -c "
 test -f ${INSTALL_DIR}/server/.secret/unlock-panel.sh && cp ${INSTALL_DIR}/server/.secret/unlock-panel.sh ${SECRET_DIR}/ && chmod 700 ${SECRET_DIR}/unlock-panel.sh && ln -sf ${SECRET_DIR}/unlock-panel.sh /usr/local/bin/unlock-my-panel
 chmod +x ${INSTALL_DIR}/update.sh 2>/dev/null
@@ -282,6 +331,9 @@ chmod +x ${INSTALL_DIR}/uninstall.sh 2>/dev/null
 ln -sf ${INSTALL_DIR}/update.sh /usr/local/bin/update-fileupshare
 ln -sf ${INSTALL_DIR}/uninstall.sh /usr/local/bin/uninstall-fileupshare
 rm -rf /tmp/File-Up-Share; true"
+
+run_step "Конфигурация" bash -c "
+printf '{\"accessDomain\":\"%s\",\"accessPort\":%s,\"accessSSL\":%s,\"accessMode\":\"%s\"}\n' '${DOMAIN}' '${ACCESS_PORT}' '${ACCESS_SSL}' '${ACCESS_MODE}' > ${DATA_DIR}/settings.json; true"
 
 pbar "Финализация"
 ask "Enter — продолжить"
@@ -321,7 +373,13 @@ systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
 systemctl start "$SERVICE_NAME" >/dev/null 2>&1 || true
 systemctl reload nginx >/dev/null 2>&1 || true
 
-if [ "$USE_SSL" -eq 1 ]; then URL="https://${DOMAIN}"; else URL="http://${DOMAIN}"; fi
+if [ "$USE_SSL" -eq 1 ]; then
+    URL="https://${DOMAIN}"
+elif [ "$PANEL_PORT" -gt 0 ] 2>/dev/null && [ "$PANEL_PORT" -ne 80 ]; then
+    URL="http://${DOMAIN}:${PANEL_PORT}"
+else
+    URL="http://${DOMAIN}"
+fi
 
 clear
 printf "\n"

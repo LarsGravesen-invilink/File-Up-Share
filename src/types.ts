@@ -25,6 +25,10 @@ export interface Settings {
   receivedPath: string;
   botPollInterval: number;
   botPollUnit: 'sec' | 'min';
+  accessDomain: string;
+  accessPort: number;
+  accessSSL: boolean;
+  accessMode: 'ip' | 'domain';
 }
 
 export interface Stats {
