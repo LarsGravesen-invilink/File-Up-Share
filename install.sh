@@ -248,8 +248,22 @@ mkdir -p "$INSTALL_DIR" "${DATA_DIR}/shares" "${DATA_DIR}/received" "$SECRET_DIR
 
 run_step "Загрузка из репозитория" bash -c "cd /tmp && rm -rf File-Up-Share && git clone --depth 1 https://github.com/${REPO}.git >/dev/null 2>&1"
 run_step "Копирование файлов" bash -c "cp -r /tmp/File-Up-Share/* ${INSTALL_DIR}/ 2>/dev/null; true"
-run_step "Установка модулей" bash -c "cd ${INSTALL_DIR} && npm install --production >/dev/null 2>&1; true"
+run_step "Установка модулей" bash -c "cd ${INSTALL_DIR} && npm install >/dev/null 2>&1; true"
 run_step "Сборка панели" bash -c "cd ${INSTALL_DIR} && npm run build >/dev/null 2>&1; true"
+
+if [ ! -f "${INSTALL_DIR}/dist/index.html" ]; then
+    printf "\n  \e[0;31m✗ Сборка не удалась — dist/index.html не найден\e[0m\n"
+    printf "  \e[2mПопытка пересборки...\e[0m\n"
+    cd "${INSTALL_DIR}"
+    npm install >/dev/null 2>&1 || true
+    npm run build 2>&1 | tail -5
+    if [ ! -f "${INSTALL_DIR}/dist/index.html" ]; then
+        printf "\n  \e[0;31mОшибка сборки. Проверьте Node.js и npm.\e[0m\n"
+        ask "Enter — продолжить"
+    else
+        printf "  \e[0;32m✓\e[0m Пересборка успешна\n"
+    fi
+fi
 
 if [ "$USE_SSL" -eq 1 ]; then
     run_step "Настройка Nginx" bash -c "
@@ -355,7 +369,7 @@ if [ "$LVER" != "$CVER" ]; then
     git clone --depth 1 "https://github.com/${REPO}.git" >/dev/null 2>&1 || true
     if [ -d /tmp/File-Up-Share ]; then
         cp -r /tmp/File-Up-Share/* "${INSTALL_DIR}/" 2>/dev/null || true
-        cd "${INSTALL_DIR}" && npm install --production >/dev/null 2>&1 && npm run build >/dev/null 2>&1 || true
+        cd "${INSTALL_DIR}" && npm install >/dev/null 2>&1 && npm run build >/dev/null 2>&1 || true
         rm -rf /tmp/File-Up-Share
         printf "\033[1A\r  \e[0;32m✓\e[0m Обновлено до %s                    \n" "$LVER"
         CVER="$LVER"
@@ -370,8 +384,9 @@ printf "\n\n  \e[1;32mУстановка завершена!\e[0m\n"
 ask "Enter — запустить сервис"
 
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
-systemctl start "$SERVICE_NAME" >/dev/null 2>&1 || true
-systemctl reload nginx >/dev/null 2>&1 || true
+systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
+sleep 2
+systemctl restart nginx >/dev/null 2>&1 || true
 
 if [ "$USE_SSL" -eq 1 ]; then
     URL="https://${DOMAIN}"

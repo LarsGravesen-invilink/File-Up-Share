@@ -92,7 +92,7 @@ printf "\n\n  \e[1;37mОбновление до \e[0;36m%s\e[0m\n\n" "$LVER"
 
 run_step "Загрузка" bash -c "cd /tmp && rm -rf File-Up-Share && git clone --depth 1 https://github.com/${REPO}.git >/dev/null 2>&1"
 run_step "Копирование" bash -c "rsync -a --exclude=data --exclude=.secret /tmp/File-Up-Share/ ${INSTALL_DIR}/ 2>/dev/null || cp -r /tmp/File-Up-Share/* ${INSTALL_DIR}/ 2>/dev/null; true"
-run_step "Модули" bash -c "cd ${INSTALL_DIR} && npm install --production >/dev/null 2>&1; true"
+run_step "Модули" bash -c "cd ${INSTALL_DIR} && npm install >/dev/null 2>&1; true"
 run_step "Сборка" bash -c "cd ${INSTALL_DIR} && npm run build >/dev/null 2>&1; true"
 run_step "Перезапуск" bash -c "systemctl restart ${SERVICE_NAME} >/dev/null 2>&1; systemctl reload nginx >/dev/null 2>&1; rm -rf /tmp/File-Up-Share; true"
 
