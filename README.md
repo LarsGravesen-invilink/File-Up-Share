@@ -21,6 +21,8 @@
 bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/install.sh)
 ```
 
+
+
 ## ОБНОВЛЕНИЕ:
 
 ```bash
@@ -31,6 +33,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-U
 ```bash
 update-fileupshare
 ```
+
+
 
 ## УДАЛЕНИЕ:
 
