@@ -1,10 +1,12 @@
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Share2, Upload, FolderOpen, Download,
   FileDown, Palette, Settings, Shield, Bot, Info,
-  LogOut, X, ChevronRight
+  LogOut, X, ChevronRight, RefreshCw, ArrowDownCircle, Loader2, CheckCircle
 } from 'lucide-react';
 import type { Page } from '../types';
+import * as api from '../api';
 
 const menuGroups = [
   {
@@ -50,6 +52,123 @@ interface Props {
   logo: string;
   headerScale: string;
   isLight: boolean;
+}
+
+function VersionChecker({ isLight }: { isLight: boolean }) {
+  const [info, setInfo] = useState<{ current: string; latest: string; hasUpdate: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [updateModal, setUpdateModal] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const check = useCallback(async (force?: boolean) => {
+    setChecking(true);
+    try {
+      const r = await api.checkVersion(force);
+      setInfo(r);
+    } catch {}
+    setChecking(false);
+  }, []);
+
+  useEffect(() => { check(); }, [check]);
+
+  const doUpdate = async () => {
+    setUpdating(true);
+    try {
+      await api.runUpdate();
+    } catch {}
+    setTimeout(() => window.location.reload(), 5000);
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2 rounded-lg px-3 py-1.5">
+        {checking ? (
+          <Loader2 className={`h-3 w-3 animate-spin ${isLight ? 'text-slate-400' : 'text-white/20'}`} />
+        ) : info?.hasUpdate ? (
+          <>
+            <ArrowDownCircle className="h-3.5 w-3.5 flex-shrink-0 text-cyan-400" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[10px] text-cyan-400">v{info.latest}</div>
+            </div>
+            <button
+              onClick={() => setUpdateModal(true)}
+              className="rounded-md bg-cyan-500/15 px-2 py-0.5 text-[9px] font-medium text-cyan-400 transition active:scale-90 hover:bg-cyan-500/25"
+            >
+              Обновить
+            </button>
+          </>
+        ) : (
+          <>
+            <CheckCircle className={`h-3 w-3 flex-shrink-0 ${isLight ? 'text-emerald-500' : 'text-emerald-400/50'}`} />
+            <button
+              onClick={() => check(true)}
+              className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
+            >
+              v{info?.current || '1.0.1'} · Актуально
+            </button>
+          </>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {updateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="glass w-full max-w-sm rounded-2xl p-6"
+            >
+              <div className="mb-1 flex items-center gap-2">
+                <RefreshCw className={`h-5 w-5 text-cyan-400 ${updating ? 'animate-spin' : ''}`} />
+                <h3 className="text-base font-semibold text-white">
+                  {updating ? 'Обновление...' : 'Обновить панель?'}
+                </h3>
+              </div>
+              {!updating && (
+                <>
+                  <p className="mb-1 text-xs text-white/40">
+                    Обновление до версии <b className="text-cyan-400">{info?.latest}</b>
+                  </p>
+                  <p className="mb-5 text-xs text-yellow-400/60">
+                    Сервис будет перезапущен. Потребуется повторная авторизация. Все файлы и данные сохранятся.
+                  </p>
+                </>
+              )}
+              {updating && (
+                <p className="mb-5 text-xs text-white/30">
+                  Загрузка, сборка и перезапуск... Страница перезагрузится автоматически.
+                </p>
+              )}
+              <div className="flex gap-2">
+                {!updating && (
+                  <button
+                    onClick={() => setUpdateModal(false)}
+                    className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
+                  >
+                    Отмена
+                  </button>
+                )}
+                <button
+                  onClick={doUpdate}
+                  disabled={updating}
+                  className="btn-glow flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 py-2.5 text-xs font-medium text-white transition active:scale-95 disabled:opacity-50"
+                >
+                  {updating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  {updating ? 'Обновление...' : 'Обновить'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 }
 
 export function Sidebar({ page, onNavigate, onLogout, open, onClose, name, logo, headerScale, isLight }: Props) {
@@ -135,7 +254,8 @@ export function Sidebar({ page, onNavigate, onLogout, open, onClose, name, logo,
           ))}
         </nav>
 
-        <div className={`flex-shrink-0 border-t p-3 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
+        <div className={`flex-shrink-0 border-t p-3 space-y-1.5 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
+          <VersionChecker isLight={isLight} />
           <button
             onClick={onLogout}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all hover:bg-red-500/10 hover:text-red-400 ${isLight ? 'text-slate-400' : 'text-white/30'}`}

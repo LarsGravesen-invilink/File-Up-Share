@@ -28,6 +28,12 @@ const defaultSettings: Settings = {
   botChatId: '',
   botPollInterval: 3,
   botPollUnit: 'sec',
+  botNotifyShare: true,
+  botNotifyUpload: true,
+  botNotifyReceived: true,
+  botNotifyService: true,
+  botDailySummary: false,
+  botDailySummaryTime: '09:00',
   timezone: 'Europe/Moscow',
 };
 

@@ -30,7 +30,10 @@ var config = {
   stealthEnabled: false,
   storagePath: SHARES_DIR, receivedPath: RECEIVED_DIR,
   botEnabled: false, botToken: '', botChatId: '',
-  botPollInterval: 3, botPollUnit: 'sec', timezone: 'Europe/Moscow'
+  botPollInterval: 3, botPollUnit: 'sec',
+  botNotifyShare: true, botNotifyUpload: true, botNotifyReceived: true, botNotifyService: true,
+  botDailySummary: false, botDailySummaryTime: '09:00',
+  timezone: 'Europe/Moscow'
 };
 var shares = [];
 var uploads = [];
@@ -38,6 +41,241 @@ var received = [];
 var logs = [];
 var sessions = {};
 var cpuPrev = null;
+
+function tgApi(method, body, cb) {
+  if (!config.botToken) return;
+  var https = require('https');
+  var data = JSON.stringify(body);
+  var opts = {
+    hostname: 'api.telegram.org',
+    path: '/bot' + config.botToken + '/' + method,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+  };
+  try {
+    var req = https.request(opts, function(resp) {
+      var chunks = '';
+      resp.on('data', function(c) { chunks += c; });
+      resp.on('end', function() { if (cb) try { cb(JSON.parse(chunks)); } catch(e) {} });
+    });
+    req.on('error', function() {});
+    req.write(data);
+    req.end();
+  } catch (e) {}
+}
+
+function botSend(text, buttons) {
+  if (!config.botEnabled || !config.botToken || !config.botChatId) return;
+  var body = { chat_id: config.botChatId, text: text, parse_mode: 'HTML' };
+  if (buttons && buttons.length > 0) {
+    body.reply_markup = { inline_keyboard: buttons };
+  }
+  tgApi('sendMessage', body);
+}
+
+function botSendFile(chatId, fileId, storedName) {
+  if (!config.botToken) return;
+  var r = received.find(function(x) { return x.id === fileId; });
+  if (!r) return;
+  var fp = path.join(RECEIVED_DIR, r.storedName);
+  if (!fs.existsSync(fp)) return;
+  var https = require('https');
+  var FormData = null;
+  try {
+    var boundary = '----FUS' + crypto.randomBytes(8).toString('hex');
+    var fileData = fs.readFileSync(fp);
+    var pre = '--' + boundary + '\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n' + chatId + '\r\n' +
+      '--' + boundary + '\r\nContent-Disposition: form-data; name="document"; filename="' + r.name + '"\r\nContent-Type: application/octet-stream\r\n\r\n';
+    var post = '\r\n--' + boundary + '--\r\n';
+    var body = Buffer.concat([Buffer.from(pre), fileData, Buffer.from(post)]);
+    var opts = {
+      hostname: 'api.telegram.org',
+      path: '/bot' + config.botToken + '/sendDocument',
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary, 'Content-Length': body.length }
+    };
+    var req = https.request(opts);
+    req.on('error', function() {});
+    req.write(body);
+    req.end();
+  } catch (e) {}
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' Б';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' КБ';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' МБ';
+  return (bytes / 1073741824).toFixed(1) + ' ГБ';
+}
+
+function fmtDate(ts) {
+  var d = new Date(ts);
+  var tz = config.timezone || 'Europe/Moscow';
+  try { return d.toLocaleString('ru-RU', { timeZone: tz, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  catch(e) { return d.toLocaleString('ru-RU'); }
+}
+
+function fmtTime(ms) {
+  var h = Math.floor(ms / 3600000);
+  var m = Math.floor((ms % 3600000) / 60000);
+  if (h > 0) return h + 'ч ' + m + 'м';
+  return m + 'м';
+}
+
+function botNotify(type, data) {
+  if (type === 'share' && !config.botNotifyShare) return;
+  if (type === 'upload' && !config.botNotifyUpload) return;
+  if (type === 'received' && !config.botNotifyReceived) return;
+  if (type === 'service' && !config.botNotifyService) return;
+
+  var text = '';
+  var buttons = [];
+
+  if (type === 'share') {
+    var s = data;
+    text = '📤  <b>СОЗДАНА НОВАЯ РАЗДАЧА</b>\n\n' +
+      '📌  <b>' + s.title + '</b>\n';
+    if (s.comment) text += '💬  ' + s.comment + '\n';
+    text += '\n';
+    text += '📁  Файлов: ' + (s.files ? s.files.length : 0) + '\n';
+    text += '⏱  Время жизни: ' + fmtTime(s.expiresAt - s.createdAt) + '\n';
+    text += '🔒  Пароль: ' + (s.password ? 'Да' : 'Нет') + '\n';
+    text += '👁  Режим: ' + (s.mode === 'view' ? 'Просмотр' : 'Загрузка') + '\n';
+    text += '\n🕐  ' + fmtDate(s.createdAt);
+    buttons = [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]];
+  }
+
+  if (type === 'upload') {
+    var u = data;
+    text = '📥  <b>СОЗДАНА НОВАЯ ЗАГРУЗКА</b>\n\n' +
+      '📌  <b>' + u.title + '</b>\n';
+    if (u.comment) text += '💬  ' + u.comment + '\n';
+    text += '\n';
+    text += '📁  Макс. файлов: ' + (u.maxFiles || '∞') + '\n';
+    text += '⏱  Время жизни: ' + fmtTime(u.expiresAt - u.createdAt) + '\n';
+    text += '🔒  Пароль: ' + (u.password ? 'Да' : 'Нет') + '\n';
+    text += '\n🕐  ' + fmtDate(u.createdAt);
+    buttons = [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]];
+  }
+
+  if (type === 'received') {
+    var r = data;
+    text = '📎  <b>ПОЛУЧЕН НОВЫЙ ФАЙЛ</b>\n\n' +
+      '📄  <b>' + r.name + '</b>\n\n' +
+      '📐  Размер: ' + fmtSize(r.size) + '\n' +
+      '📂  Тип: ' + r.type + '\n' +
+      '📋  Источник: ' + r.source + '\n';
+    if (r.comment) text += '💬  Комментарий: ' + r.comment + '\n';
+    text += '\n🕐  ' + fmtDate(r.receivedAt);
+    buttons = [
+      [{ text: '📥 Получить файл', callback_data: 'get_file:' + r.id }],
+      [{ text: '🗑 Стереть', callback_data: 'delete_msg' }]
+    ];
+  }
+
+  if (type === 'service') {
+    text = '⚙️  <b>СЛУЖЕБНОЕ</b>\n\n' + data;
+    buttons = [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]];
+  }
+
+  botSend(text, buttons);
+}
+
+var lastUpdateId = 0;
+var botCmdInterval = null;
+
+function startBotCommands() {
+  if (botCmdInterval) clearInterval(botCmdInterval);
+  botCmdInterval = setInterval(pollBotCommands, 2000);
+  pollBotCommands();
+}
+
+function pollBotCommands() {
+  if (!config.botEnabled || !config.botToken) return;
+  tgApi('getUpdates', { offset: lastUpdateId + 1, timeout: 0 }, function(resp) {
+    if (!resp || !resp.ok || !resp.result) return;
+    resp.result.forEach(function(upd) {
+      lastUpdateId = upd.update_id;
+      if (upd.callback_query) {
+        var cb = upd.callback_query;
+        var cbData = cb.data || '';
+        if (cbData === 'delete_msg') {
+          tgApi('deleteMessage', { chat_id: cb.message.chat.id, message_id: cb.message.message_id });
+          tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: 'Удалено' });
+        } else if (cbData.indexOf('get_file:') === 0) {
+          var fid = cbData.split(':')[1];
+          botSendFile(cb.message.chat.id, fid);
+          tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: 'Отправляю файл...' });
+        }
+      }
+      if (upd.message && upd.message.text) {
+        var txt = upd.message.text.trim();
+        var chatId = upd.message.chat.id;
+        if (txt === '/hide') {
+          config.stealthEnabled = true;
+          sessions = {}; saveSess(); save();
+          tgApi('sendMessage', { chat_id: chatId, text: '🔒 Панель скрыта. Сессии сброшены.\nВернуть: /show' });
+          log('Stealth ON (бот)', 'warn');
+        } else if (txt === '/show') {
+          config.stealthEnabled = false; save();
+          tgApi('sendMessage', { chat_id: chatId, text: '🔓 Панель восстановлена.' });
+          log('Stealth OFF (бот)', 'success');
+        }
+      }
+    });
+  });
+}
+
+setTimeout(startBotCommands, 2000);
+
+var lastDailySent = '';
+
+function checkDailySummary() {
+  if (!config.botEnabled || !config.botToken || !config.botChatId) return;
+  if (!config.botDailySummary) return;
+  var tz = config.timezone || 'Europe/Moscow';
+  var now = new Date();
+  var timeStr;
+  try { timeStr = now.toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }); }
+  catch(e) { timeStr = now.toTimeString().slice(0,5); }
+  var dateKey = now.toISOString().slice(0,10);
+  if (timeStr === config.botDailySummaryTime && lastDailySent !== dateKey) {
+    lastDailySent = dateKey;
+    sendDailySummary();
+  }
+}
+
+function sendDailySummary() {
+  var now = Date.now();
+  var dayAgo = now - 86400000;
+  var newReceived = received.filter(function(r) { return r.receivedAt > dayAgo; }).length;
+  var activeShares = shares.filter(function(s) { return s.expiresAt > now; }).length;
+  var activeUploads = uploads.filter(function(u) { return u.expiresAt > now; }).length;
+  var shareBytes = dirSize(SHARES_DIR);
+  var recvBytes = dirSize(RECEIVED_DIR);
+  var totalUsed = shareBytes + recvBytes;
+  var diskMB = getDiskMB();
+  var usedMB = Math.round(totalUsed / 1048576);
+  var freeMB = diskMB - usedMB;
+  if (freeMB < 0) freeMB = 0;
+  var text = '📊  <b>ЕЖЕДНЕВНЫЙ ОТЧЁТ СЕРВИСА</b>\n\n' +
+    '📅  Период: ' + fmtDate(dayAgo) + ' — ' + fmtDate(now) + '\n\n' +
+    '📎  Файлов получено за сутки: <b>' + newReceived + '</b>\n' +
+    '📤  Активных раздач: <b>' + activeShares + '</b>\n' +
+    '📥  Активных загрузок: <b>' + activeUploads + '</b>\n' +
+    '📦  Всего принятых файлов: <b>' + received.length + '</b>\n\n' +
+    '💾  <b>Хранилище</b>\n' +
+    '├  Раздачи: ' + fmtSize(shareBytes) + '\n' +
+    '├  Принятые: ' + fmtSize(recvBytes) + '\n' +
+    '├  Итого занято: <b>' + fmtSize(totalUsed) + '</b>\n' +
+    '└  Свободно: <b>' + (freeMB >= 1024 ? (freeMB / 1024).toFixed(1) + ' ГБ' : freeMB + ' МБ') + '</b>\n\n' +
+    '🕐  ' + fmtDate(now);
+  var buttons = [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]];
+  botSend(text, buttons);
+  log('Ежедневная сводка отправлена', 'info');
+}
+
+setInterval(checkDailySummary, 60000);
 
 function load() {
   try {
@@ -106,10 +344,34 @@ function cpuUsage() {
   return pct;
 }
 
+function getDiskMB() {
+  try {
+    var child = require('child_process');
+    var out = child.execSync('df -BM --output=size,avail "' + DATA_DIR + '" 2>/dev/null').toString();
+    var lines = out.trim().split('\n');
+    if (lines.length >= 2) {
+      var parts = lines[1].trim().split(/\s+/);
+      var totalMB = parseInt(parts[0]) || 0;
+      return totalMB;
+    }
+  } catch (e) {}
+  try {
+    var child2 = require('child_process');
+    var out2 = child2.execSync('df -m "' + DATA_DIR + '" 2>/dev/null').toString();
+    var lines2 = out2.trim().split('\n');
+    if (lines2.length >= 2) {
+      var parts2 = lines2[1].trim().split(/\s+/);
+      return parseInt(parts2[1]) || 0;
+    }
+  } catch (e2) {}
+  return 0;
+}
+
 function stats() {
   var tm = os.totalmem(), fm = os.freemem(), um = tm - fm;
   var c = os.cpus();
   var ss = dirSize(SHARES_DIR) + dirSize(RECEIVED_DIR);
+  var diskTotal = getDiskMB();
   var ifaces = os.networkInterfaces();
   var ip = '127.0.0.1';
   Object.keys(ifaces).forEach(function(k) {
@@ -120,7 +382,7 @@ function stats() {
     uploadPages: uploads.filter(function(u) { return u.expiresAt > Date.now(); }).length,
     receivedFiles: received.length,
     usedSpaceMB: Math.round(ss / 1048576),
-    totalSpaceMB: 51200,
+    totalSpaceMB: diskTotal,
     ip: ip, hostname: os.hostname(),
     cpu: c[0] ? c[0].model : 'Unknown', cpuCores: c.length, cpuPercent: cpuUsage(),
     ramTotal: Math.round(tm / 1073741824 * 10) / 10,
@@ -201,14 +463,34 @@ function auth(req, res, next) {
   next();
 }
 
+app.post('/api/stealth', function(req, res) {
+  var b = req.body || {};
+  if (!b.password || !fs.existsSync(CRED_FILE)) return res.status(401).json({ error: 'Unauthorized' });
+  var cred;
+  try { cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8')); } catch(e) { return res.status(500).json({ error: 'Read error' }); }
+  if (cred.passwordHash !== hash(b.password)) return res.status(401).json({ error: 'Wrong password' });
+  if (b.action === 'hide') {
+    config.stealthEnabled = true;
+    sessions = {}; saveSess(); save();
+    log('Stealth ON (CLI)', 'warn');
+    res.json({ ok: true, stealth: true });
+  } else if (b.action === 'show') {
+    config.stealthEnabled = false;
+    save();
+    log('Stealth OFF (CLI)', 'success');
+    res.json({ ok: true, stealth: false });
+  } else {
+    res.status(400).json({ error: 'Invalid action' });
+  }
+});
+
 app.get('/api/state', function(req, res) {
   var t = (req.headers.authorization || '').replace('Bearer ', '');
   var ok = t && sessions[t] && sessions[t].expiresAt > Date.now();
   var hasCred = fs.existsSync(CRED_FILE);
-  if (config.stealthEnabled && !ok) return res.status(404).send('Not Found');
   res.json({
     auth: { firstRun: !hasCred, loggedIn: !!ok },
-    config: ok ? config : { name: config.name, logo: config.logo },
+    config: ok ? config : { name: config.name, logo: config.logo, stealthEnabled: config.stealthEnabled },
     stats: ok ? stats() : null,
     shares: ok ? shares.filter(function(s) { return s.expiresAt > Date.now(); }) : [],
     uploads: ok ? uploads.filter(function(u) { return u.expiresAt > Date.now(); }) : [],
@@ -220,7 +502,7 @@ app.get('/api/state', function(req, res) {
 app.post('/api/register', function(req, res) {
   if (fs.existsSync(CRED_FILE)) return res.status(400).json({ error: 'Exists' });
   var b = req.body || {};
-  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 4) return res.status(400).json({ error: 'Invalid' });
+  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 6) return res.status(400).json({ error: 'Invalid' });
   fs.writeFileSync(CRED_FILE, JSON.stringify({ login: b.login, passwordHash: hash(b.password) }));
   var tk = token();
   sessions[tk] = { login: b.login, expiresAt: Date.now() + SESS_TTL };
@@ -254,7 +536,7 @@ app.post('/api/logout', auth, function(req, res) {
 
 app.post('/api/change-credentials', auth, function(req, res) {
   var b = req.body || {};
-  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 4) return res.status(400).json({ error: 'Invalid' });
+  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 6) return res.status(400).json({ error: 'Invalid' });
   fs.writeFileSync(CRED_FILE, JSON.stringify({ login: b.login, passwordHash: hash(b.password) }));
   sessions = {}; saveSess();
   log('Данные входа изменены', 'success');
@@ -262,8 +544,12 @@ app.post('/api/change-credentials', auth, function(req, res) {
 });
 
 app.patch('/api/config', auth, function(req, res) {
+  var hadBot = config.botEnabled;
   config = Object.assign({}, config, req.body);
   save();
+  if (config.botEnabled !== hadBot || req.body.botToken) {
+    startBotCommands();
+  }
   res.json(config);
 });
 
@@ -275,6 +561,7 @@ app.post('/api/shares', auth, function(req, res) {
   if (config.sharePasswordEnabled && config.sharePassword) s.password = config.sharePassword;
   shares.unshift(s); save();
   log('Раздача: ' + s.title, 'success');
+  botNotify('share', s);
   res.json({ ok: true, share: s });
 });
 
@@ -311,6 +598,7 @@ app.post('/api/uploads', auth, function(req, res) {
   if (config.uploadPasswordEnabled && config.uploadPassword) u.password = config.uploadPassword;
   uploads.unshift(u); save();
   log('Загрузка: ' + u.title, 'success');
+  botNotify('upload', u);
   res.json({ ok: true, upload: u });
 });
 
@@ -348,7 +636,10 @@ app.get('/api/received/:id/download', auth, function(req, res) {
   if (!r) return res.status(404).send('Not found');
   var fp = path.join(RECEIVED_DIR, r.storedName);
   if (!fs.existsSync(fp)) return res.status(404).send('Missing');
-  res.download(fp, r.name);
+  var safeName = encodeURIComponent(r.name).replace(/['()]/g, escape);
+  res.setHeader('Content-Disposition', 'attachment; filename="' + r.name + "\"; filename*=UTF-8''" + safeName);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.sendFile(path.resolve(fp));
 });
 
 app.get('/api/received/:id/view', auth, function(req, res) {
@@ -372,8 +663,29 @@ app.get('/api/check', auth, function(req, res) {
   res.json({ results: results });
 });
 
+app.post('/api/bot/test', auth, function(req, res) {
+  if (!config.botToken || !config.botChatId) return res.status(400).json({ error: 'Не настроен' });
+  var text = '✅  <b>FILEUPSHARE</b>\n\n' +
+    '🔔  Тестовое уведомление\n\n' +
+    '📡  Панель работает корректно\n' +
+    '🕐  ' + fmtDate(Date.now());
+  var body = {
+    chat_id: config.botChatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+  };
+  tgApi('sendMessage', body, function(resp) {
+    if (resp && resp.ok) {
+      res.json({ ok: true });
+      log('Тест бота: OK', 'success');
+    } else {
+      res.status(400).json({ error: (resp && resp.description) || 'Ошибка' });
+    }
+  });
+});
+
 app.get('/api/public/share/:enc', function(req, res) {
-  if (config.stealthEnabled) return res.status(404).send('Not Found');
   var id = did(req.params.enc);
   var s = shares.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
   if (!s) return res.status(404).json({ error: 'Not found' });
@@ -391,7 +703,6 @@ app.post('/api/public/share/:enc/verify', function(req, res) {
 });
 
 app.get('/api/public/upload/:enc', function(req, res) {
-  if (config.stealthEnabled) return res.status(404).send('Not Found');
   var id = did(req.params.enc);
   var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
   if (!u) return res.status(404).json({ error: 'Not found' });
@@ -423,6 +734,7 @@ app.post('/api/public/upload/:enc/submit', recvUp.single('file'), function(req, 
   u.usedUploads = (u.usedUploads || 0) + 1;
   save();
   log('Файл: ' + entry.name + ' ← ' + u.title, 'success');
+  botNotify('received', entry);
   res.json({ ok: true, file: entry });
 });
 
@@ -441,7 +753,68 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   var fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
   if (!fs.existsSync(fp)) fp = path.join(RECEIVED_DIR, req.params.filename);
   if (!fs.existsSync(fp)) return res.status(404).send('Not found');
-  res.download(path.resolve(fp), orig);
+  var safeName = encodeURIComponent(orig).replace(/['()]/g, escape);
+  res.setHeader('Content-Disposition', 'attachment; filename="' + orig + "\"; filename*=UTF-8''" + safeName);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.sendFile(path.resolve(fp));
+});
+
+var CURRENT_VERSION = '1.0.1';
+var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
+var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
+
+function checkVersion(cb) {
+  var https = require('https');
+  https.get(VERSION_URL, function(resp) {
+    var body = '';
+    resp.on('data', function(c) { body += c; });
+    resp.on('end', function() {
+      try {
+        var j = JSON.parse(body);
+        cachedVersion = { version: j.version || CURRENT_VERSION, checked: Date.now() };
+        if (cb) cb(null, cachedVersion);
+      } catch(e) { if (cb) cb(e); }
+    });
+  }).on('error', function(e) { if (cb) cb(e); });
+}
+
+setInterval(function() { checkVersion(); }, 6 * 3600000);
+setTimeout(function() { checkVersion(); }, 5000);
+
+app.get('/api/version', auth, function(req, res) {
+  var force = req.query.force === '1';
+  if (force || Date.now() - cachedVersion.checked > 3600000) {
+    checkVersion(function(err) {
+      res.json({ current: CURRENT_VERSION, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== CURRENT_VERSION });
+    });
+  } else {
+    res.json({ current: CURRENT_VERSION, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== CURRENT_VERSION });
+  }
+});
+
+app.post('/api/update', auth, function(req, res) {
+  res.json({ ok: true, message: 'Обновление запущено' });
+  log('Обновление панели...', 'warn');
+  sessions = {}; saveSess();
+  setTimeout(function() {
+    try {
+      var child = require('child_process');
+      child.execSync('cd /tmp && rm -rf File-Up-Share && git clone --depth 1 https://github.com/LarsGravesen-invilink/File-Up-Share.git', { timeout: 60000 });
+      child.execSync('cp -r /tmp/File-Up-Share/server /opt/fileupshare/', { timeout: 10000 });
+      child.execSync('cp -r /tmp/File-Up-Share/src /opt/fileupshare/', { timeout: 10000 });
+      child.execSync('cp /tmp/File-Up-Share/package.json /opt/fileupshare/', { timeout: 10000 });
+      child.execSync('cp /tmp/File-Up-Share/vite.config.ts /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
+      child.execSync('cp /tmp/File-Up-Share/tsconfig.json /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
+      child.execSync('cp /tmp/File-Up-Share/index.html /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
+      child.execSync('cd /opt/fileupshare && npm install', { timeout: 120000 });
+      child.execSync('cd /opt/fileupshare && npm run build', { timeout: 120000 });
+      child.execSync('rm -rf /tmp/File-Up-Share', { timeout: 10000 });
+      log('Обновление завершено, перезапуск...', 'success');
+      child.execSync('systemctl restart fileupshare', { timeout: 10000 });
+    } catch(e) {
+      log('Ошибка обновления: ' + e.message, 'error');
+    }
+  }, 500);
 });
 
 if (distPath) {
@@ -455,6 +828,6 @@ if (distPath) {
 }
 
 app.listen(PORT, '0.0.0.0', function() {
-  console.log('FileUpShare v1.0.1 on port ' + PORT);
-  log('Запуск на порту ' + PORT, 'success');
+  console.log('FileUpShare v' + CURRENT_VERSION + ' on port ' + PORT);
+  log('Запуск v' + CURRENT_VERSION + ' на порту ' + PORT, 'success');
 });

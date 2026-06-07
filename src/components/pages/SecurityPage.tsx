@@ -19,7 +19,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
   const [confirmModal, setConfirmModal] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
 
-  const canSave = newLogin.trim().length >= 3 && newPass.trim().length >= 4 && newPass === confirmPass;
+  const canSave = newLogin.trim().length >= 3 && newPass.trim().length >= 6 && newPass === confirmPass;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -71,7 +71,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs text-white/30">Новый пароль (мин. 4 символа)</label>
+            <label className="mb-1.5 block text-xs text-white/30">Новый пароль (мин. 6 символов)</label>
             <div className="relative">
               <input
                 type={showPass ? 'text' : 'password'}

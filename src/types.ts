@@ -39,6 +39,12 @@ export interface Settings {
   botChatId: string;
   botPollInterval: number;
   botPollUnit: string;
+  botNotifyShare: boolean;
+  botNotifyUpload: boolean;
+  botNotifyReceived: boolean;
+  botNotifyService: boolean;
+  botDailySummary: boolean;
+  botDailySummaryTime: string;
   timezone: string;
 }
 

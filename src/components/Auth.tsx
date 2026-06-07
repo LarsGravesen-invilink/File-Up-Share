@@ -26,8 +26,8 @@ export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
       setError('Логин минимум 3 символа');
       return;
     }
-    if (firstRun && pass.trim().length < 4) {
-      setError('Пароль минимум 4 символа');
+    if (firstRun && pass.trim().length < 6) {
+      setError('Пароль минимум 6 символов');
       return;
     }
 
@@ -116,7 +116,7 @@ export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
 
             <div>
               <label className="mb-1.5 block text-xs font-medium text-white/40">
-                Пароль {firstRun && <span className="text-white/20">(мин. 4 символа)</span>}
+                Пароль {firstRun && <span className="text-white/20">(мин. 6 символов)</span>}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />

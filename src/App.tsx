@@ -69,6 +69,7 @@ export default function App() {
         <Landing
           key="landing"
           name={store.settings.name}
+          hidden={(store.settings as any).stealthEnabled}
           onEnter={() => setView('auth')}
         />
       )}

@@ -4,10 +4,11 @@ import { Upload, Shield, Zap, ArrowRight } from 'lucide-react';
 
 interface Props {
   name: string;
+  hidden?: boolean;
   onEnter: () => void;
 }
 
-export function Landing({ name, onEnter }: Props) {
+export function Landing({ name, hidden, onEnter }: Props) {
   const [time, setTime] = useState(new Date().toLocaleTimeString('ru-RU'));
 
   useEffect(() => {
@@ -98,18 +99,20 @@ export function Landing({ name, onEnter }: Props) {
             </div>
           </motion.div>
 
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.9 }}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onEnter}
-            className="btn-glow group relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-2xl shadow-cyan-500/20 transition-shadow hover:shadow-cyan-500/30 sm:px-8 sm:py-3.5"
-          >
-            Войти в панель
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </motion.button>
+          {!hidden && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.9 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onEnter}
+              className="btn-glow group relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-2xl shadow-cyan-500/20 transition-shadow hover:shadow-cyan-500/30 sm:px-8 sm:py-3.5"
+            >
+              Войти в панель
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </motion.button>
+          )}
 
           <motion.div
             initial={{ opacity: 0 }}

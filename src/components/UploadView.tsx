@@ -24,18 +24,17 @@ export function UploadView({ encoded }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadingIdx, setUploadingIdx] = useState(0);
   const [uploadTotal, setUploadTotal] = useState(0);
-  const [done, setDone] = useState(false);
+  const [sentCount, setSentCount] = useState(0);
+  const [lastSentName, setLastSentName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    loadUpload();
-  }, [encoded]);
+  useEffect(() => { loadUpload(); }, [encoded]);
 
   const loadUpload = async () => {
     try {
       const data = await api.getPublicUpload(encoded);
       setConfig(data.config);
-      if (data.upload.password) {
+      if (data.upload.hasPassword) {
         setNeedPassword(true);
       }
       setUpload(data.upload);
@@ -80,9 +79,15 @@ export function UploadView({ encoded }: Props) {
       setUploadProgress(0);
 
       try {
-        await api.uploadPublicFile(encoded, files[i], i === 0 ? comment : '', upload.password || '', (progress) => {
-          setUploadProgress(progress);
-        });
+        await api.uploadPublicFile(
+          encoded,
+          files[i],
+          i === 0 ? comment : '',
+          upload.password || '',
+          (progress) => setUploadProgress(progress)
+        );
+        setLastSentName(files[i].name);
+        setSentCount(prev => prev + 1);
       } catch {
         setUploading(false);
         return;
@@ -90,7 +95,9 @@ export function UploadView({ encoded }: Props) {
     }
 
     setUploading(false);
-    setDone(true);
+    setFiles([]);
+    setComment('');
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const cancelUpload = () => {
@@ -159,17 +166,6 @@ export function UploadView({ encoded }: Props) {
               Получить доступ
             </button>
           </motion.div>
-        ) : done ? (
-          <motion.div
-            key="done"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-card flex flex-col items-center rounded-xl py-10 text-center"
-          >
-            <CheckCircle className="mb-3 h-12 w-12 text-emerald-400" />
-            <p className="text-base font-semibold text-white">Файлы отправлены</p>
-            <p className="mt-1 text-xs text-white/30">Спасибо за загрузку</p>
-          </motion.div>
         ) : (
           <motion.div
             key="form"
@@ -189,6 +185,18 @@ export function UploadView({ encoded }: Props) {
                 <p className="mt-1 text-xs text-white/30 sm:text-sm">{upload.comment}</p>
               )}
             </div>
+
+            {sentCount > 0 && (
+              <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 px-4 py-3">
+                <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-emerald-400">
+                    {sentCount === 1 ? 'Файл отправлен' : `Отправлено файлов: ${sentCount}`}
+                  </p>
+                  <p className="truncate text-[10px] text-emerald-400/50">{lastSentName}</p>
+                </div>
+              </div>
+            )}
 
             <div>
               <input ref={fileRef} type="file" multiple onChange={addFiles} className="hidden" />
@@ -240,7 +248,7 @@ export function UploadView({ encoded }: Props) {
               className="btn-glow flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 py-3 text-xs font-semibold text-white shadow-lg shadow-cyan-500/15 transition active:scale-[0.97] hover:shadow-cyan-500/25 disabled:opacity-40 sm:text-sm"
             >
               <Send className="h-3.5 w-3.5" />
-              Загрузить
+              Загрузить {files.length > 0 && `(${files.length})`}
             </button>
           </motion.div>
         )}

@@ -127,6 +127,9 @@ export const deleteReceived = (id: string) =>
 export const runCheck = () =>
   request<{ results: { name: string; status: string; message: string }[] }>('/check');
 
+export const testBot = () =>
+  request<{ ok: boolean; error?: string }>('/bot/test', { method: 'POST' });
+
 export const getPublicShare = (encoded: string) =>
   request<{ share: any; config: any }>('/public/share/' + encoded);
 
@@ -143,3 +146,9 @@ export const getFileUrl = (dir: string, name: string) => API_BASE + '/file/' + d
 export const getDownloadUrl = (dir: string, name: string) => API_BASE + '/download/' + dir + '/' + name;
 export const getReceivedDownloadUrl = (id: string) => API_BASE + '/received/' + id + '/download';
 export const getReceivedViewUrl = (id: string) => API_BASE + '/received/' + id + '/view';
+
+export const checkVersion = (force?: boolean) =>
+  request<{ current: string; latest: string; hasUpdate: boolean }>('/version' + (force ? '?force=1' : ''));
+
+export const runUpdate = () =>
+  request<{ ok: boolean }>('/update', { method: 'POST' });

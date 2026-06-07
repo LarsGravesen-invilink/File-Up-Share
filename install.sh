@@ -272,9 +272,44 @@ rm -f /etc/nginx/sites-available/fileupshare /etc/nginx/sites-enabled/fileupshar
 systemctl daemon-reload; nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null
 rm -rf /opt/fileupshare /var/lib/fileupshare
 rm -f /usr/local/bin/update-fileupshare /usr/local/bin/uninstall-fileupshare
+rm -f /usr/local/bin/fileupshare-hide /usr/local/bin/fileupshare-show
 echo "Удалено"
 USCRIPT
 chmod +x /usr/local/bin/uninstall-fileupshare
+
+cat > /usr/local/bin/fileupshare-hide << 'USCRIPT'
+#!/bin/bash
+PORT=$(grep -oP 'Environment=PORT=\K[0-9]+' /etc/systemd/system/fileupshare.service 2>/dev/null || echo 3000)
+echo -n "Пароль авторизации: "
+read -rs PASS
+echo ""
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://127.0.0.1:${PORT}/api/stealth" \
+  -H "Content-Type: application/json" \
+  -d "{\"action\":\"hide\",\"password\":\"${PASS}\"}")
+if [ "$RESP" = "200" ]; then
+  echo "🔒 Панель скрыта"
+else
+  echo "✗ Неверный пароль или ошибка"
+fi
+USCRIPT
+chmod +x /usr/local/bin/fileupshare-hide
+
+cat > /usr/local/bin/fileupshare-show << 'USCRIPT'
+#!/bin/bash
+PORT=$(grep -oP 'Environment=PORT=\K[0-9]+' /etc/systemd/system/fileupshare.service 2>/dev/null || echo 3000)
+echo -n "Пароль авторизации: "
+read -rs PASS
+echo ""
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://127.0.0.1:${PORT}/api/stealth" \
+  -H "Content-Type: application/json" \
+  -d "{\"action\":\"show\",\"password\":\"${PASS}\"}")
+if [ "$RESP" = "200" ]; then
+  echo "🔓 Панель восстановлена"
+else
+  echo "✗ Неверный пароль или ошибка"
+fi
+USCRIPT
+chmod +x /usr/local/bin/fileupshare-show
 
 rm -rf /tmp/File-Up-Share
 
@@ -293,6 +328,8 @@ echo -e "  ${D}Данные:  ${DATA_DIR}${N}"
 echo ""
 echo -e "  ${D}update-fileupshare     — обновить${N}"
 echo -e "  ${D}uninstall-fileupshare  — удалить${N}"
+echo -e "  ${D}fileupshare-hide       — скрыть панель${N}"
+echo -e "  ${D}fileupshare-show       — восстановить панель${N}"
 echo ""
 echo -e "  ${D}by LarsGravesen | invilink${N}"
 echo ""

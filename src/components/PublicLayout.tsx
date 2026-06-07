@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Upload, Clock } from 'lucide-react';
+import { Upload, Clock, AlertTriangle, Code2 } from 'lucide-react';
 import { liveCountdown } from '../helpers';
 
 interface Props {
@@ -29,9 +29,18 @@ function linkify(text: string): React.ReactNode[] {
 
 export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, adText, children }: Props) {
   const [timeLeft, setTimeLeft] = useState(() => liveCountdown(expiresAt));
+  const [expired, setExpired] = useState(expiresAt <= Date.now());
 
   useEffect(() => {
-    const update = () => setTimeLeft(liveCountdown(expiresAt));
+    const update = () => {
+      const diff = expiresAt - Date.now();
+      if (diff <= 0) {
+        setExpired(true);
+        setTimeLeft('00:00:00');
+        return;
+      }
+      setTimeLeft(liveCountdown(expiresAt));
+    };
     update();
     const i = setInterval(update, 1000);
     return () => clearInterval(i);
@@ -39,9 +48,31 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
 
   const adContent = useMemo(() => {
     if (!adEnabled) return null;
-    const text = adText || 'Создано с помощью FileUpShare — https://github.com/LarsGravesen-invilink/File-Up-Share';
-    return linkify(text);
+    if (!adText) {
+      return (
+        <span className="inline-flex items-center gap-2">
+          <span>Создано с помощью FileUpShare</span>
+          <a href="https://github.com/LarsGravesen-invilink/File-Up-Share" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-md bg-white/8 px-2 py-0.5 text-white/30 transition hover:bg-white/15 hover:text-white/50">
+            <Code2 className="h-3 w-3" />
+            <span className="text-[9px]">GitHub</span>
+          </a>
+        </span>
+      );
+    }
+    return linkify(adText);
   }, [adEnabled, adText]);
+
+  if (expired) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#0a0e1a] px-6 text-center">
+        <div className="noise-bg" />
+        <AlertTriangle className="mb-4 h-12 w-12 text-yellow-400/60" />
+        <h2 className="mb-2 text-lg font-semibold text-white">Срок действия истёк</h2>
+        <p className="text-sm text-white/30">Эта страница больше недоступна</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#0a0e1a]">

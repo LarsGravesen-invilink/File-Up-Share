@@ -101,7 +101,7 @@ export function CreateSharePage({ settings, onAdd }: Props) {
       lifetimeUnit,
       hideExtensions,
       hideTimer,
-      password: usePassword ? password : '',
+      password: settings.sharePasswordEnabled ? settings.sharePassword : (usePassword ? password : ''),
       createdAt: now,
       expiresAt: now + ms,
       link: '',
@@ -176,7 +176,7 @@ export function CreateSharePage({ settings, onAdd }: Props) {
     allowDownload: mode === 'download' ? true : allowDownload,
     hideExtensions,
     hideTimer,
-    password: usePassword ? password : '',
+    password: settings.sharePasswordEnabled ? settings.sharePassword : (usePassword ? password : ''),
     expiresAt: Date.now() + durationToMs(lifetime, lifetimeUnit),
   };
 
@@ -358,23 +358,25 @@ export function CreateSharePage({ settings, onAdd }: Props) {
             <Toggle checked={mode === 'download' ? true : allowDownload} onChange={setAllowDownload} disabled={mode === 'download'} />
           </div>
 
-          <div className="rounded-lg bg-white/3 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-white/50">
-                <Lock className="h-3 w-3" /> Пароль для доступа
+          {!settings.sharePasswordEnabled && (
+            <div className="rounded-lg bg-white/3 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-white/50">
+                  <Lock className="h-3 w-3" /> Пароль для доступа
+                </div>
+                <Toggle checked={usePassword} onChange={setUsePassword} />
               </div>
-              <Toggle checked={usePassword} onChange={setUsePassword} />
+              {usePassword && (
+                <input
+                  type="text"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Введите пароль"
+                  className="mt-2 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
+                />
+              )}
             </div>
-            {usePassword && (
-              <input
-                type="text"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Введите пароль"
-                className="mt-2 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
-              />
-            )}
-          </div>
+          )}
         </div>
       </motion.div>
 
