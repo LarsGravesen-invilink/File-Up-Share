@@ -112,8 +112,7 @@ export function Panel({
   const isLight = settings.panelTheme === 'light';
 
   return (
-    <div className="scale-wrapper">
-    <div className={`relative flex flex-col overflow-hidden ${isLight ? 'theme-light bg-[#f0f1f5]' : 'bg-[#080c18]'} ${uiScaleClass} ${headerScaleClass}`} style={{ height: '100%' }}>
+    <div className={`relative flex h-dvh flex-col overflow-hidden ${isLight ? 'theme-light bg-[#f0f1f5]' : 'bg-[#080c18]'} ${uiScaleClass} ${headerScaleClass}`}>
       <div className="noise-bg" />
 
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -183,7 +182,6 @@ export function Panel({
           </div>
         </footer>
       </div>
-    </div>
     </div>
   );
 }
