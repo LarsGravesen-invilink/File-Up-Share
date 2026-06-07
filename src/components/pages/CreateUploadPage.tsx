@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { generateId, type UploadPage, type Settings } from '../../types';
 
 interface Props {
@@ -20,6 +20,9 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
   const [password, setPassword] = useState('');
   const [allowComment, setAllowComment] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const abortRef = useRef<boolean>(false);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const buildItem = (): UploadPage => ({
     id: generateId(),
@@ -36,11 +39,38 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
     createdAt: Date.now(),
   });
 
+  const cancelUpload = () => {
+    abortRef.current = true;
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    setCreating(false);
+    setUploadProgress(0);
+  };
+
   const handleCreate = () => {
+    abortRef.current = false;
     setCreating(true);
-    setTimeout(() => {
+    setUploadProgress(0);
+
+    const duration = 800;
+    const step = 100 / (duration / 50);
+    let progress = 0;
+
+    progressIntervalRef.current = setInterval(() => {
+      if (abortRef.current) return;
+      progress = Math.min(progress + step * (0.7 + Math.random() * 0.6), 95);
+      setUploadProgress(progress);
+    }, 50);
+
+    Promise.resolve().then(async () => {
+      await new Promise(r => setTimeout(r, duration));
+      if (abortRef.current) return;
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      setUploadProgress(100);
+      await new Promise(r => setTimeout(r, 200));
+      if (abortRef.current) return;
       onCreateUpload(buildItem());
       setCreating(false);
+      setUploadProgress(0);
       setTitle('');
       setComment('');
       setLifetimeEnabled(true);
@@ -50,7 +80,7 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
       setMaxUploads(1);
       setPasswordEnabled(false);
       setPassword('');
-    }, 500);
+    });
   };
 
   const handlePreviewClick = () => {
@@ -62,6 +92,47 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
 
   return (
     <div className="space-y-4 animate-in">
+      {/* Upload progress modal */}
+      {creating && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-2xl border border-accent/20 bg-surface/95 backdrop-blur-xl p-6 animate-in shadow-2xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent animate-bounce">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold text-text">Идёт загрузка</div>
+                <div className="text-[10px] text-text-muted">Создание страницы загрузки...</div>
+              </div>
+            </div>
+
+            <div className="relative h-2 rounded-full bg-border/60 overflow-hidden mb-2">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-100"
+                style={{ width: `${uploadProgress}%` }}
+              />
+              <div className="absolute inset-0 rounded-full bg-accent/20 animate-pulse" style={{ display: uploadProgress >= 100 ? 'none' : 'block' }} />
+            </div>
+            <div className="flex items-center justify-between mb-5">
+              <span className="text-[10px] text-text-muted">
+                {uploadProgress < 100 ? 'Сохранение настроек...' : 'Завершение...'}
+              </span>
+              <span className="text-[10px] font-mono text-accent">{Math.round(uploadProgress)}%</span>
+            </div>
+
+            <button
+              onClick={cancelUpload}
+              className="w-full h-9 rounded-lg border border-border text-[12px] font-medium text-text-muted hover:text-text hover:border-accent/40 transition-colors"
+            >
+              Отменить
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Title & Comment */}
       <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3">
         <label className="block text-[11px] font-medium text-text-secondary">Информация</label>
@@ -138,7 +209,7 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
           </button>
         </div>
 
-        {/* Password — hidden if global password set */}
+        {/* Password */}
         {!globalPw && (<div className="pt-2 border-t border-border/50">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] text-text-secondary">Пароль доступа</span>
@@ -163,7 +234,7 @@ export const CreateUploadPage: React.FC<Props> = ({ onCreateUpload, onPreview, s
           Предпросмотр
         </button>
         <button onClick={handleCreate} disabled={creating} className="flex-1 h-10 rounded-lg bg-accent/90 text-bg text-[12px] font-semibold hover:bg-accent active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all shadow-[0_0_15px_#22c55e15]">
-          {creating ? '...' : 'Опубликовать'}
+          Опубликовать
         </button>
       </div>
     </div>

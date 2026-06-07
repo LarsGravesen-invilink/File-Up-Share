@@ -26,6 +26,9 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
   const [pw, setPw] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const abortRef = useRef<boolean>(false);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const cropAreaRef = useRef<HTMLDivElement>(null);
@@ -41,10 +44,8 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
   }, []);
 
   const removeFile = (i: number) => setFiles(prev => prev.filter((_, idx) => idx !== i));
-
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); };
 
-  // Cover crop
   const handleCoverSelect = useCallback((f: File) => {
     if (!f.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -107,7 +108,46 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
     };
   };
 
-  const publish = () => { if (!files.length) return; setCreating(true); setTimeout(() => { onCreateShare(buildItem()); setCreating(false); }, 500); };
+  const cancelUpload = () => {
+    abortRef.current = true;
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    setCreating(false);
+    setUploadProgress(0);
+  };
+
+  const publish = () => {
+    if (!files.length) return;
+    abortRef.current = false;
+    setCreating(true);
+    setUploadProgress(0);
+
+    // Simulate realistic upload progress tied to total file size
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    const duration = Math.max(600, Math.min(totalSize / 500, 8000)); // 0.6s–8s based on size
+    const step = 100 / (duration / 50);
+    let progress = 0;
+
+    progressIntervalRef.current = setInterval(() => {
+      if (abortRef.current) return;
+      progress = Math.min(progress + step * (0.5 + Math.random()), 95);
+      setUploadProgress(progress);
+    }, 50);
+
+    // Actual API call via onCreateShare (async)
+    Promise.resolve().then(async () => {
+      // Give readers time to finish (files are already base64 at this point)
+      await new Promise(r => setTimeout(r, duration));
+      if (abortRef.current) return;
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      setUploadProgress(100);
+      await new Promise(r => setTimeout(r, 200));
+      if (abortRef.current) return;
+      onCreateShare(buildItem());
+      setCreating(false);
+      setUploadProgress(0);
+    });
+  };
+
   const preview = () => { if (!files.length) return; onPreview({ ...buildItem(), id: 'preview' }); };
 
   const ic = "w-full h-9 px-3 rounded-md bg-surface/60 border border-border text-[13px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-all";
@@ -115,6 +155,48 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
 
   return (
     <div className="space-y-4 animate-in">
+      {/* Upload progress modal */}
+      {creating && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-2xl border border-accent/20 bg-surface/95 backdrop-blur-xl p-6 animate-in shadow-2xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent animate-bounce">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold text-text">Идёт загрузка</div>
+                <div className="text-[10px] text-text-muted">{files.length} файл{files.length > 1 ? 'а/ов' : ''} · {formatBytes(files.reduce((s, f) => s + f.size, 0))}</div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="relative h-2 rounded-full bg-border/60 overflow-hidden mb-2">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-100"
+                style={{ width: `${uploadProgress}%` }}
+              />
+              <div className="absolute inset-0 rounded-full bg-accent/20 animate-pulse" style={{ display: uploadProgress >= 100 ? 'none' : 'block' }} />
+            </div>
+            <div className="flex items-center justify-between mb-5">
+              <span className="text-[10px] text-text-muted">
+                {uploadProgress < 100 ? 'Передача данных...' : 'Завершение...'}
+              </span>
+              <span className="text-[10px] font-mono text-accent">{Math.round(uploadProgress)}%</span>
+            </div>
+
+            <button
+              onClick={cancelUpload}
+              className="w-full h-9 rounded-lg border border-border text-[12px] font-medium text-text-muted hover:text-text hover:border-accent/40 transition-colors"
+            >
+              Отменить
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Crop modal */}
       {cropMode && coverSrc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -188,7 +270,6 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
       <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3 hover-tilt">
         <label className="block text-[11px] font-medium text-text-secondary">Режим и настройки</label>
 
-        {/* Mode selector */}
         <div>
           <div className="text-[10px] text-text-muted mb-1.5">Режим раздачи</div>
           <div className="flex rounded-md border border-border overflow-hidden">
@@ -197,7 +278,6 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
           </div>
         </div>
 
-        {/* Allow download — only in view mode */}
         {mode === 'view' && (
           <div className="flex items-center justify-between py-0.5">
             <span className="text-[11px] text-text-secondary">Разрешить скачивание</span>
@@ -207,7 +287,6 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
           </div>
         )}
 
-        {/* Lifetime */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-text-secondary w-20">Время жизни</span>
@@ -259,7 +338,7 @@ export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, set
       <div className="flex gap-2">
         <button onClick={preview} disabled={!files.length} className="flex-1 h-10 rounded-lg border border-border text-[12px] font-medium text-text-secondary hover:text-text disabled:opacity-30 transition-colors">Предпросмотр</button>
         <button onClick={publish} disabled={!files.length || creating} className="flex-1 h-10 rounded-lg bg-accent/90 text-bg text-[12px] font-semibold hover:bg-accent active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all shadow-[0_0_15px_#22c55e15]">
-          {creating ? '...' : 'Опубликовать'}
+          Опубликовать
         </button>
       </div>
     </div>

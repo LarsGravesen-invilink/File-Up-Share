@@ -40,7 +40,7 @@ const Viewer: React.FC<{ file: ShareFile; onClose: () => void; viewOnly: boolean
       {isImg && <img src={file.data} alt="" className="max-w-full max-h-full object-contain vp" draggable={false} onClick={e => e.stopPropagation()} style={{ pointerEvents: viewOnly ? 'none' : 'auto' }} />}
       {isVid && (
         <div className="w-full h-full flex items-center justify-center vp" onClick={e => e.stopPropagation()}>
-          <video ref={vidRef} src={file.data} controls controlsList="nodownload" autoPlay className="max-w-full max-h-full" />
+          <video ref={vidRef} src={file.data} controls controlsList="nodownload" autoPlay preload="auto" className="max-w-full max-h-full" />
           <button onClick={goFs} className="absolute bottom-6 right-6 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white/80 hover:text-white">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
           </button>
@@ -81,6 +81,23 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
   const isAllAudio = allFiles.every(f => f.type.startsWith('audio/'));
   const reqPw = item.password || (settings.sharePasswordEnabled ? settings.sharePassword : '');
   const needsPw = reqPw && !unlocked && !isPreview;
+
+  // Preload media files into browser cache for view mode
+  useEffect(() => {
+    const mediaFiles = allFiles.filter(f => f.type.startsWith('video/') || f.type.startsWith('audio/'));
+    if (!mediaFiles.length) return;
+    const links: HTMLLinkElement[] = [];
+    mediaFiles.forEach(f => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = f.type.startsWith('video/') ? 'video' : 'audio';
+      link.href = f.data;
+      link.setAttribute('crossorigin', 'anonymous');
+      document.head.appendChild(link);
+      links.push(link);
+    });
+    return () => { links.forEach(l => { try { document.head.removeChild(l); } catch {} }); };
+  }, []);
 
   useEffect(() => {
     if (!item.lifetimeEnabled) return;
@@ -183,7 +200,7 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
                   <div className="flex-1 min-w-0"><div className="text-[12px] font-medium truncate" style={{ color: t.text }}>{dn(f)}</div><div className="text-[9px]" style={{ color: t.textMuted }}>{formatBytes(f.size)}</div></div>
                   <DlBtn f={f} small />
                 </div>
-                <audio ref={el => { audioRefs.current[i] = el; }} src={f.data} controls controlsList="nodownload" className="w-full h-8" style={{ filter: 'sepia(20%) saturate(70%) hue-rotate(100deg)' }} onPlay={() => playA(i)} />
+                <audio ref={el => { audioRefs.current[i] = el; }} src={f.data} controls controlsList="nodownload" preload="auto" className="w-full h-8" style={{ filter: 'sepia(20%) saturate(70%) hue-rotate(100deg)' }} onPlay={() => playA(i)} />
               </div>
             ))}
           </div>
@@ -191,7 +208,7 @@ export const ShareView: React.FC<Props> = ({ item, settings, onBack, isPreview }
           <div className="w-full max-w-xl flex flex-col items-center">
             {allFiles[0].type.startsWith('image/') && <div className="rounded-lg overflow-hidden mb-4 max-w-full cursor-pointer" onClick={() => openV(allFiles[0])}><img src={allFiles[0].data} alt={dn(allFiles[0])} className="max-w-full max-h-[55vh] object-contain" draggable={false} style={{ pointerEvents: viewOnly ? 'none' : 'auto' }} /></div>}
             {allFiles[0].type.startsWith('video/') && <div className="rounded-lg overflow-hidden mb-4 w-full max-w-lg cursor-pointer" style={{ background: '#000' }} onClick={() => openV(allFiles[0])}><video src={allFiles[0].data} controls controlsList="nodownload" className="w-full max-h-[55vh]" preload="auto" /></div>}
-            {allFiles[0].type.startsWith('audio/') && <div className="w-full max-w-sm rounded-xl p-4 mb-4" style={{ background: t.surface + '80' }}><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style={{ background: t.accent + '15' }}>🎵</div><div className="flex-1 truncate text-[12px] font-medium" style={{ color: t.text }}>{dn(allFiles[0])}</div></div><audio src={allFiles[0].data} controls controlsList="nodownload" className="w-full h-9" style={{ filter: 'sepia(20%) saturate(70%) hue-rotate(100deg)' }} /></div>}
+            {allFiles[0].type.startsWith('audio/') && <div className="w-full max-w-sm rounded-xl p-4 mb-4" style={{ background: t.surface + '80' }}><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style={{ background: t.accent + '15' }}>🎵</div><div className="flex-1 truncate text-[12px] font-medium" style={{ color: t.text }}>{dn(allFiles[0])}</div></div><audio src={allFiles[0].data} controls controlsList="nodownload" preload="auto" className="w-full h-9" style={{ filter: 'sepia(20%) saturate(70%) hue-rotate(100deg)' }} /></div>}
             {!allFiles[0].type.startsWith('image/') && !allFiles[0].type.startsWith('video/') && !allFiles[0].type.startsWith('audio/') && <div className="w-full max-w-xs rounded-xl p-5 mb-4 text-center" style={{ background: t.surface + '80' }}><div className="text-3xl mb-2">📎</div><div className="text-[13px] font-medium" style={{ color: t.text }}>{dn(allFiles[0])}</div></div>}
             <DlBtn f={allFiles[0]} />
           </div>
