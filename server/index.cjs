@@ -4,642 +4,457 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
-const { execSync } = require('child_process');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
 const SHARES_DIR = path.join(DATA_DIR, 'shares');
 const RECEIVED_DIR = path.join(DATA_DIR, 'received');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-const CREDENTIALS_FILE = path.join(DATA_DIR, '.credentials');
-const SESSIONS_FILE = path.join(DATA_DIR, '.sessions');
-const SESSION_DURATION = 6 * 60 * 60 * 1000;
+const CRED_FILE = path.join(DATA_DIR, '.credentials');
+const SESS_FILE = path.join(DATA_DIR, '.sessions');
+const SESS_TTL = 6 * 3600000;
 
-[SHARES_DIR, RECEIVED_DIR].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+function mkdirp(d) { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); }
+mkdirp(SHARES_DIR);
+mkdirp(RECEIVED_DIR);
 
-const defaultConfig = {
-  name: 'FileUpShare',
-  logo: '',
-  panelTheme: 'dark',
-  pageTheme: 'default',
-  uiScale: 'default',
-  headerScale: 'default',
-  quotaEnabled: false,
-  quotaValue: 10,
-  quotaUnit: 'GB',
-  adEnabled: true,
-  adText: '',
-  hideLifetimeOnPage: false,
+var config = {
+  name: 'FileUpShare', logo: '', panelTheme: 'dark', pageTheme: 'default',
+  uiScale: 'default', headerScale: 'default',
+  quotaEnabled: false, quotaValue: 10, quotaUnit: 'GB',
+  adEnabled: true, adText: '', hideLifetimeOnPage: false,
   encryptFiles: false,
-  sharePasswordEnabled: false,
-  sharePassword: '',
-  uploadPasswordEnabled: false,
-  uploadPassword: '',
+  sharePasswordEnabled: false, sharePassword: '',
+  uploadPasswordEnabled: false, uploadPassword: '',
   stealthEnabled: false,
-  storagePath: SHARES_DIR,
-  receivedPath: RECEIVED_DIR,
-  botEnabled: false,
-  botToken: '',
-  botChatId: '',
-  botPollInterval: 3,
-  botPollUnit: 'sec',
-  timezone: 'Europe/Moscow',
+  storagePath: SHARES_DIR, receivedPath: RECEIVED_DIR,
+  botEnabled: false, botToken: '', botChatId: '',
+  botPollInterval: 3, botPollUnit: 'sec', timezone: 'Europe/Moscow'
 };
+var shares = [];
+var uploads = [];
+var received = [];
+var logs = [];
+var sessions = {};
+var cpuPrev = null;
 
-let config = { ...defaultConfig };
-let shares = [];
-let uploads = [];
-let received = [];
-let logs = [];
-let sessions = {};
-let lastCpuInfo = null;
-
-function loadData() {
+function load() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      config = { ...defaultConfig, ...raw.config };
-      shares = raw.shares || [];
-      uploads = raw.uploads || [];
-      received = raw.received || [];
-      logs = raw.logs || [];
+      var d = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      config = Object.assign({}, config, d.config || {});
+      shares = d.shares || [];
+      uploads = d.uploads || [];
+      received = d.received || [];
+      logs = d.logs || [];
     }
-  } catch (e) { console.error('Load error:', e.message); }
+  } catch (e) { console.error('Load err:', e.message); }
   try {
-    if (fs.existsSync(SESSIONS_FILE)) {
-      sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
-    }
-  } catch {}
+    if (fs.existsSync(SESS_FILE)) sessions = JSON.parse(fs.readFileSync(SESS_FILE, 'utf8'));
+  } catch (e) {}
 }
 
-function saveData() {
+function save() {
+  try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ config: config, shares: shares, uploads: uploads, received: received, logs: logs })); } catch (e) {}
+}
+
+function saveSess() {
+  try { fs.writeFileSync(SESS_FILE, JSON.stringify(sessions)); } catch (e) {}
+}
+
+function hash(p) { return crypto.createHash('sha256').update(p + '_fus_salt').digest('hex'); }
+function token() { return crypto.randomBytes(32).toString('hex'); }
+function eid(id) { return Buffer.from(id).toString('base64').replace(/=/g, ''); }
+function did(e) { try { return Buffer.from(e, 'base64').toString('utf8'); } catch (x) { return null; } }
+
+function log(msg, type) {
+  logs.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), timestamp: Date.now(), message: msg, type: type || 'info' });
+  if (logs.length > 500) logs = logs.slice(0, 500);
+  var cut = Date.now() - 259200000;
+  logs = logs.filter(function(l) { return l.timestamp > cut; });
+  save();
+}
+
+function dirSize(d) {
+  var t = 0;
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ config, shares, uploads, received, logs }, null, 2));
-  } catch (e) { console.error('Save error:', e.message); }
+    if (!fs.existsSync(d)) return 0;
+    fs.readdirSync(d).forEach(function(f) {
+      var fp = path.join(d, f);
+      var s = fs.statSync(fp);
+      t += s.isDirectory() ? dirSize(fp) : s.size;
+    });
+  } catch (e) {}
+  return t;
 }
 
-function saveSessions() {
-  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions)); } catch {}
-}
-
-function hashPw(p) {
-  return crypto.createHash('sha256').update(p + 'fus_s4lt_k3y').digest('hex');
-}
-
-function genToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-function encodeId(id) {
-  return Buffer.from(id).toString('base64').replace(/=/g, '');
-}
-
-function decodeId(enc) {
-  try { return Buffer.from(enc, 'base64').toString('utf8'); } catch { return null; }
-}
-
-function addLog(message, type) {
-  type = type || 'info';
-  logs.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), timestamp: Date.now(), message, type });
-  if (logs.length > 1000) logs = logs.slice(0, 1000);
-  logs = logs.filter(l => l.timestamp > Date.now() - 72 * 3600000);
-  saveData();
-}
-
-function getDirSize(dir) {
-  let total = 0;
-  try {
-    if (!fs.existsSync(dir)) return 0;
-    const items = fs.readdirSync(dir);
-    for (const item of items) {
-      const full = path.join(dir, item);
-      const stat = fs.statSync(full);
-      if (stat.isDirectory()) total += getDirSize(full);
-      else total += stat.size;
-    }
-  } catch {}
-  return total;
-}
-
-function getCpuUsage() {
-  const cpus = os.cpus();
-  let totalIdle = 0, totalTick = 0;
-  cpus.forEach(c => {
-    for (const t in c.times) totalTick += c.times[t];
-    totalIdle += c.times.idle;
+function cpuUsage() {
+  var cpus = os.cpus();
+  var idle = 0, total = 0;
+  cpus.forEach(function(c) {
+    for (var k in c.times) total += c.times[k];
+    idle += c.times.idle;
   });
-  if (lastCpuInfo) {
-    const idleDiff = totalIdle - lastCpuInfo.idle;
-    const totalDiff = totalTick - lastCpuInfo.total;
-    lastCpuInfo = { idle: totalIdle, total: totalTick };
-    if (totalDiff === 0) return 0;
-    return Math.round((1 - idleDiff / totalDiff) * 100);
+  var pct = 0;
+  if (cpuPrev) {
+    var di = idle - cpuPrev.idle;
+    var dt = total - cpuPrev.total;
+    if (dt > 0) pct = Math.round((1 - di / dt) * 100);
   }
-  lastCpuInfo = { idle: totalIdle, total: totalTick };
-  return 0;
+  cpuPrev = { idle: idle, total: total };
+  return pct;
 }
 
-function getDiskSpace() {
-  try {
-    const out = execSync('df -BM --output=size,avail / 2>/dev/null || df -m / 2>/dev/null').toString();
-    const lines = out.trim().split('\n');
-    const parts = lines[lines.length - 1].trim().split(/\s+/);
-    const total = parseInt(parts[0] || parts[1]) || 51200;
-    return total;
-  } catch { return 51200; }
-}
-
-function getStats() {
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const usedMem = totalMem - freeMem;
-  const cpus = os.cpus();
-  const shareBytes = getDirSize(config.storagePath || SHARES_DIR);
-  const recvBytes = getDirSize(config.receivedPath || RECEIVED_DIR);
-  const totalDiskMB = getDiskSpace();
-
+function stats() {
+  var tm = os.totalmem(), fm = os.freemem(), um = tm - fm;
+  var c = os.cpus();
+  var ss = dirSize(SHARES_DIR) + dirSize(RECEIVED_DIR);
+  var ifaces = os.networkInterfaces();
+  var ip = '127.0.0.1';
+  Object.keys(ifaces).forEach(function(k) {
+    (ifaces[k] || []).forEach(function(i) { if (!i.internal && i.family === 'IPv4') ip = i.address; });
+  });
   return {
-    filesInShare: shares.reduce((s, sh) => s + (sh.files ? sh.files.length : 0), 0),
-    uploadPages: uploads.filter(u => u.expiresAt > Date.now()).length,
+    filesInShare: shares.reduce(function(s, x) { return s + (x.files ? x.files.length : 0); }, 0),
+    uploadPages: uploads.filter(function(u) { return u.expiresAt > Date.now(); }).length,
     receivedFiles: received.length,
-    usedSpaceMB: Math.round((shareBytes + recvBytes) / (1024 * 1024)),
-    totalSpaceMB: totalDiskMB,
-    ip: Object.values(os.networkInterfaces()).flat().find(i => i && !i.internal && i.family === 'IPv4')?.address || '127.0.0.1',
-    hostname: os.hostname(),
-    cpu: (cpus[0] && cpus[0].model) || 'Unknown',
-    cpuCores: cpus.length,
-    cpuPercent: getCpuUsage(),
-    ramTotal: Math.round(totalMem / (1024 * 1024 * 1024) * 10) / 10,
-    ramUsed: Math.round(usedMem / (1024 * 1024 * 1024) * 100) / 100,
-    ramPercent: Math.round(usedMem / totalMem * 100),
+    usedSpaceMB: Math.round(ss / 1048576),
+    totalSpaceMB: 51200,
+    ip: ip, hostname: os.hostname(),
+    cpu: c[0] ? c[0].model : 'Unknown', cpuCores: c.length, cpuPercent: cpuUsage(),
+    ramTotal: Math.round(tm / 1073741824 * 10) / 10,
+    ramUsed: Math.round(um / 1073741824 * 100) / 100,
+    ramPercent: Math.round(um / tm * 100)
   };
 }
 
-function getQuotaBytes() {
-  if (!config.quotaEnabled) return Infinity;
-  return config.quotaUnit === 'GB' ? config.quotaValue * 1024 * 1024 * 1024 : config.quotaValue * 1024 * 1024;
-}
-
-function getCurrentUsageBytes() {
-  return getDirSize(config.storagePath || SHARES_DIR) + getDirSize(config.receivedPath || RECEIVED_DIR);
-}
-
-function cleanupExpired() {
-  const now = Date.now();
-  const grace = 24 * 3600000;
-
-  shares = shares.filter(s => {
+function cleanup() {
+  var now = Date.now(), grace = 86400000;
+  var delUp = [];
+  shares = shares.filter(function(s) {
     if (s.expiresAt + grace < now) {
-      if (s.files) {
-        s.files.forEach(f => {
-          try { fs.unlinkSync(path.join(SHARES_DIR, s.id, f.storedName || f.name)); } catch {}
-        });
-      }
-      try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch {}
-      addLog('Автоудаление раздачи: ' + s.title, 'info');
+      (s.files || []).forEach(function(f) { try { fs.unlinkSync(path.join(SHARES_DIR, s.id, f.storedName || f.name)); } catch (e) {} });
+      try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch (e) {}
       return false;
     }
     return true;
   });
-
-  const expiredUploadIds = [];
-  uploads = uploads.filter(u => {
-    if (u.expiresAt + grace < now) {
-      expiredUploadIds.push(u.id);
-      addLog('Автоудаление загрузки: ' + u.title, 'info');
-      return false;
-    }
+  uploads = uploads.filter(function(u) {
+    if (u.expiresAt + grace < now) { delUp.push(u.id); return false; }
     return true;
   });
-
-  if (expiredUploadIds.length > 0) {
-    received = received.filter(r => {
-      if (expiredUploadIds.includes(r.uploadId)) {
-        try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch {}
-        return false;
-      }
+  if (delUp.length) {
+    received = received.filter(function(r) {
+      if (delUp.indexOf(r.uploadId) >= 0) { try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch (e) {} return false; }
       return true;
     });
   }
-
-  saveData();
+  save();
 }
 
-setInterval(cleanupExpired, 600000);
-setInterval(getCpuUsage, 2000);
-loadData();
-cleanupExpired();
+setInterval(cleanup, 600000);
+setInterval(cpuUsage, 3000);
+load();
+cleanup();
 
 app.use(express.json({ limit: '50mb' }));
 
-const distCandidates = [
+var distCandidates = [
   path.join(__dirname, '../dist'),
   path.join(__dirname, 'dist'),
-  '/opt/fileupshare/dist',
+  '/opt/fileupshare/dist'
 ];
-let distPath = null;
-for (const dp of distCandidates) {
-  if (fs.existsSync(path.join(dp, 'index.html'))) { distPath = dp; break; }
-}
+var distPath = null;
+distCandidates.forEach(function(dp) {
+  if (!distPath && fs.existsSync(path.join(dp, 'index.html'))) distPath = dp;
+});
 if (distPath) {
   app.use(express.static(distPath));
-  console.log('Serving static from: ' + distPath);
-} else {
-  console.log('WARNING: dist/index.html not found, checked: ' + distCandidates.join(', '));
+  console.log('Static: ' + distPath);
 }
 
-const shareStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const sid = req.params.shareId || req.body.shareId || crypto.randomBytes(8).toString('hex');
-    const dir = path.join(SHARES_DIR, sid);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+var shareStor = multer.diskStorage({
+  destination: function(req, file, cb) {
+    var sid = req.params.shareId || crypto.randomBytes(8).toString('hex');
+    var dir = path.join(SHARES_DIR, sid);
+    mkdirp(dir);
     req.shareId = sid;
     cb(null, dir);
   },
-  filename: (req, file, cb) => {
+  filename: function(req, file, cb) {
     cb(null, crypto.randomBytes(16).toString('hex') + path.extname(file.originalname));
   }
 });
-
-const recvStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (!fs.existsSync(RECEIVED_DIR)) fs.mkdirSync(RECEIVED_DIR, { recursive: true });
-    cb(null, RECEIVED_DIR);
-  },
-  filename: (req, file, cb) => {
+var recvStor = multer.diskStorage({
+  destination: function(req, file, cb) { mkdirp(RECEIVED_DIR); cb(null, RECEIVED_DIR); },
+  filename: function(req, file, cb) {
     cb(null, crypto.randomBytes(16).toString('hex') + path.extname(file.originalname));
   }
 });
-
-const shareUpload = multer({ storage: shareStorage, limits: { fileSize: 10737418240 } });
-const recvUpload = multer({ storage: recvStorage, limits: { fileSize: 10737418240 } });
+var shareUp = multer({ storage: shareStor, limits: { fileSize: 10737418240 } });
+var recvUp = multer({ storage: recvStor, limits: { fileSize: 10737418240 } });
 
 function auth(req, res, next) {
-  const t = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!t || !sessions[t] || sessions[t].expiresAt < Date.now()) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  req.userSession = sessions[t];
+  var t = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!t || !sessions[t] || sessions[t].expiresAt < Date.now()) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }
 
-app.get('/api/state', (req, res) => {
-  const t = (req.headers.authorization || '').replace('Bearer ', '');
-  const hasCreds = fs.existsSync(CREDENTIALS_FILE);
-  const ok = t && sessions[t] && sessions[t].expiresAt > Date.now();
-
-  if (config.stealthEnabled && !ok) {
-    return res.status(404).send('Not Found');
-  }
-
+app.get('/api/state', function(req, res) {
+  var t = (req.headers.authorization || '').replace('Bearer ', '');
+  var ok = t && sessions[t] && sessions[t].expiresAt > Date.now();
+  var hasCred = fs.existsSync(CRED_FILE);
+  if (config.stealthEnabled && !ok) return res.status(404).send('Not Found');
   res.json({
-    auth: { firstRun: !hasCreds, loggedIn: !!ok },
+    auth: { firstRun: !hasCred, loggedIn: !!ok },
     config: ok ? config : { name: config.name, logo: config.logo },
-    stats: ok ? getStats() : null,
-    shares: ok ? shares.filter(s => s.expiresAt > Date.now()) : [],
-    uploads: ok ? uploads.filter(u => u.expiresAt > Date.now()) : [],
+    stats: ok ? stats() : null,
+    shares: ok ? shares.filter(function(s) { return s.expiresAt > Date.now(); }) : [],
+    uploads: ok ? uploads.filter(function(u) { return u.expiresAt > Date.now(); }) : [],
     received: ok ? received : [],
-    logs: ok ? logs : [],
+    logs: ok ? logs : []
   });
 });
 
-app.post('/api/register', (req, res) => {
-  if (fs.existsSync(CREDENTIALS_FILE)) return res.status(400).json({ error: 'Exists' });
-  const { login, password } = req.body;
-  if (!login || login.length < 3 || !password || password.length < 4) return res.status(400).json({ error: 'Invalid' });
-  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify({ login, passwordHash: hashPw(password) }));
-  const token = genToken();
-  sessions[token] = { login, expiresAt: Date.now() + SESSION_DURATION };
-  saveSessions();
-  addLog('Создан аккаунт: ' + login, 'success');
-  res.json({ ok: true, token });
+app.post('/api/register', function(req, res) {
+  if (fs.existsSync(CRED_FILE)) return res.status(400).json({ error: 'Exists' });
+  var b = req.body || {};
+  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 4) return res.status(400).json({ error: 'Invalid' });
+  fs.writeFileSync(CRED_FILE, JSON.stringify({ login: b.login, passwordHash: hash(b.password) }));
+  var tk = token();
+  sessions[tk] = { login: b.login, expiresAt: Date.now() + SESS_TTL };
+  saveSess();
+  log('Аккаунт создан: ' + b.login, 'success');
+  res.json({ ok: true, token: tk });
 });
 
-app.post('/api/login', (req, res) => {
-  if (!fs.existsSync(CREDENTIALS_FILE)) return res.status(400).json({ error: 'No account' });
-  const { login, password } = req.body;
-  let creds;
-  try { creds = JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8')); } catch { return res.status(500).json({ error: 'Read error' }); }
-  if (creds.login !== login || creds.passwordHash !== hashPw(password)) {
-    addLog('Неудачный вход: ' + login, 'warn');
+app.post('/api/login', function(req, res) {
+  if (!fs.existsSync(CRED_FILE)) return res.status(400).json({ error: 'No account' });
+  var b = req.body || {};
+  var cred;
+  try { cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8')); } catch (e) { return res.status(500).json({ error: 'Read error' }); }
+  if (cred.login !== b.login || cred.passwordHash !== hash(b.password)) {
+    log('Неудачный вход: ' + (b.login || ''), 'warn');
     return res.status(401).json({ error: 'Invalid' });
   }
-  const token = genToken();
-  sessions[token] = { login, expiresAt: Date.now() + SESSION_DURATION };
-  saveSessions();
-  addLog('Вход: ' + login, 'success');
-  res.json({ ok: true, token });
+  var tk = token();
+  sessions[tk] = { login: b.login, expiresAt: Date.now() + SESS_TTL };
+  saveSess();
+  log('Вход: ' + b.login, 'success');
+  res.json({ ok: true, token: tk });
 });
 
-app.post('/api/logout', auth, (req, res) => {
-  const t = (req.headers.authorization || '').replace('Bearer ', '');
-  delete sessions[t];
-  saveSessions();
-  addLog('Выход', 'info');
+app.post('/api/logout', auth, function(req, res) {
+  var t = (req.headers.authorization || '').replace('Bearer ', '');
+  delete sessions[t]; saveSess();
+  log('Выход', 'info');
   res.json({ ok: true });
 });
 
-app.post('/api/change-credentials', auth, (req, res) => {
-  const { login, password } = req.body;
-  if (!login || login.length < 3 || !password || password.length < 4) return res.status(400).json({ error: 'Invalid' });
-  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify({ login, passwordHash: hashPw(password) }));
-  sessions = {};
-  saveSessions();
-  addLog('Данные входа изменены', 'success');
+app.post('/api/change-credentials', auth, function(req, res) {
+  var b = req.body || {};
+  if (!b.login || b.login.length < 3 || !b.password || b.password.length < 4) return res.status(400).json({ error: 'Invalid' });
+  fs.writeFileSync(CRED_FILE, JSON.stringify({ login: b.login, passwordHash: hash(b.password) }));
+  sessions = {}; saveSess();
+  log('Данные входа изменены', 'success');
   res.json({ ok: true });
 });
 
-app.patch('/api/config', auth, (req, res) => {
-  config = { ...config, ...req.body };
-  saveData();
+app.patch('/api/config', auth, function(req, res) {
+  config = Object.assign({}, config, req.body);
+  save();
   res.json(config);
 });
 
-app.post('/api/shares', auth, (req, res) => {
-  const s = req.body;
+app.post('/api/shares', auth, function(req, res) {
+  var s = req.body;
   s.id = s.id || crypto.randomBytes(8).toString('hex');
-  s.link = '/s/' + encodeId(s.id);
+  s.link = '/s/' + eid(s.id);
   s.createdAt = s.createdAt || Date.now();
-  if (config.sharePasswordEnabled && config.sharePassword) {
-    s.password = config.sharePassword;
-  }
-  shares.unshift(s);
-  saveData();
-  addLog('Раздача: ' + s.title, 'success');
+  if (config.sharePasswordEnabled && config.sharePassword) s.password = config.sharePassword;
+  shares.unshift(s); save();
+  log('Раздача: ' + s.title, 'success');
   res.json({ ok: true, share: s });
 });
 
-app.post('/api/shares/:shareId/upload', auth, shareUpload.array('files', 50), (req, res) => {
-  const quota = getQuotaBytes();
-  const used = getCurrentUsageBytes();
-  const added = (req.files || []).reduce((s, f) => s + f.size, 0);
-  if (used + added > quota) {
-    (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch {} });
-    return res.status(413).json({ error: 'Quota exceeded' });
-  }
-  const files = (req.files || []).map(f => ({ name: f.originalname, storedName: f.filename, size: f.size, type: f.mimetype }));
-  res.json({ ok: true, shareId: req.shareId, files });
+app.post('/api/shares/:shareId/upload', auth, shareUp.array('files', 50), function(req, res) {
+  var files = (req.files || []).map(function(f) {
+    return { name: f.originalname, storedName: f.filename, size: f.size, type: f.mimetype };
+  });
+  res.json({ ok: true, shareId: req.shareId, files: files });
 });
 
-app.delete('/api/shares/:id', auth, (req, res) => {
-  const s = shares.find(x => x.id === req.params.id);
+app.delete('/api/shares/:id', auth, function(req, res) {
+  var s = shares.find(function(x) { return x.id === req.params.id; });
   if (s) {
-    (s.files || []).forEach(f => { try { fs.unlinkSync(path.join(SHARES_DIR, s.id, f.storedName || f.name)); } catch {} });
-    try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch {}
-    shares = shares.filter(x => x.id !== req.params.id);
-    saveData();
-    addLog('Удалена раздача: ' + s.title, 'info');
+    (s.files || []).forEach(function(f) { try { fs.unlinkSync(path.join(SHARES_DIR, s.id, f.storedName || f.name)); } catch (e) {} });
+    try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch (e) {}
+    shares = shares.filter(function(x) { return x.id !== req.params.id; });
+    save(); log('Удалена раздача: ' + s.title, 'info');
   }
   res.json({ ok: true });
 });
 
-app.patch('/api/shares/:id/extend', auth, (req, res) => {
-  const s = shares.find(x => x.id === req.params.id);
-  if (s) {
-    const h = req.body.hours || 24;
-    s.expiresAt += h * 3600000;
-    saveData();
-    addLog('Продлена раздача: ' + s.title + ' +' + h + 'ч', 'info');
-  }
+app.patch('/api/shares/:id/extend', auth, function(req, res) {
+  var s = shares.find(function(x) { return x.id === req.params.id; });
+  if (s) { var h = (req.body || {}).hours || 24; s.expiresAt += h * 3600000; save(); }
   res.json({ ok: true, share: s });
 });
 
-app.post('/api/uploads', auth, (req, res) => {
-  const u = req.body;
+app.post('/api/uploads', auth, function(req, res) {
+  var u = req.body;
   u.id = u.id || crypto.randomBytes(8).toString('hex');
-  u.link = '/u/' + encodeId(u.id);
+  u.link = '/u/' + eid(u.id);
   u.createdAt = u.createdAt || Date.now();
   u.usedUploads = 0;
-  if (config.uploadPasswordEnabled && config.uploadPassword) {
-    u.password = config.uploadPassword;
-  }
-  uploads.unshift(u);
-  saveData();
-  addLog('Загрузка: ' + u.title, 'success');
+  if (config.uploadPasswordEnabled && config.uploadPassword) u.password = config.uploadPassword;
+  uploads.unshift(u); save();
+  log('Загрузка: ' + u.title, 'success');
   res.json({ ok: true, upload: u });
 });
 
-app.delete('/api/uploads/:id', auth, (req, res) => {
-  const u = uploads.find(x => x.id === req.params.id);
+app.delete('/api/uploads/:id', auth, function(req, res) {
+  var u = uploads.find(function(x) { return x.id === req.params.id; });
   if (u) {
-    received.filter(r => r.uploadId === u.id).forEach(r => {
-      try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch {}
+    received = received.filter(function(r) {
+      if (r.uploadId === u.id) { try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch (e) {} return false; }
+      return true;
     });
-    received = received.filter(r => r.uploadId !== u.id);
-    uploads = uploads.filter(x => x.id !== req.params.id);
-    saveData();
-    addLog('Удалена загрузка: ' + u.title, 'info');
+    uploads = uploads.filter(function(x) { return x.id !== req.params.id; });
+    save(); log('Удалена загрузка: ' + u.title, 'info');
   }
   res.json({ ok: true });
 });
 
-app.patch('/api/uploads/:id/extend', auth, (req, res) => {
-  const u = uploads.find(x => x.id === req.params.id);
-  if (u) {
-    const h = req.body.hours || 24;
-    u.expiresAt += h * 3600000;
-    saveData();
-    addLog('Продлена загрузка: ' + u.title + ' +' + h + 'ч', 'info');
-  }
+app.patch('/api/uploads/:id/extend', auth, function(req, res) {
+  var u = uploads.find(function(x) { return x.id === req.params.id; });
+  if (u) { var h = (req.body || {}).hours || 24; u.expiresAt += h * 3600000; save(); }
   res.json({ ok: true, upload: u });
 });
 
-app.delete('/api/received/:id', auth, (req, res) => {
-  const r = received.find(x => x.id === req.params.id);
+app.delete('/api/received/:id', auth, function(req, res) {
+  var r = received.find(function(x) { return x.id === req.params.id; });
   if (r) {
-    try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch {}
-    received = received.filter(x => x.id !== req.params.id);
-    saveData();
-    addLog('Удалён файл: ' + r.name, 'info');
+    try { fs.unlinkSync(path.join(RECEIVED_DIR, r.storedName)); } catch (e) {}
+    received = received.filter(function(x) { return x.id !== req.params.id; });
+    save(); log('Удалён: ' + r.name, 'info');
   }
   res.json({ ok: true });
 });
 
-app.get('/api/check', auth, (req, res) => {
-  const results = [];
+app.get('/api/received/:id/download', auth, function(req, res) {
+  var r = received.find(function(x) { return x.id === req.params.id; });
+  if (!r) return res.status(404).send('Not found');
+  var fp = path.join(RECEIVED_DIR, r.storedName);
+  if (!fs.existsSync(fp)) return res.status(404).send('Missing');
+  res.download(fp, r.name);
+});
+
+app.get('/api/received/:id/view', auth, function(req, res) {
+  var r = received.find(function(x) { return x.id === req.params.id; });
+  if (!r) return res.status(404).send('Not found');
+  var fp = path.join(RECEIVED_DIR, r.storedName);
+  if (!fs.existsSync(fp)) return res.status(404).send('Missing');
+  res.sendFile(path.resolve(fp));
+});
+
+app.get('/api/check', auth, function(req, res) {
+  var results = [];
   results.push({ name: 'Node.js', status: 'ok', message: process.version });
-  try {
-    execSync('which nginx');
-    results.push({ name: 'Nginx', status: 'ok', message: 'Установлен' });
-  } catch {
-    results.push({ name: 'Nginx', status: 'warn', message: 'Не найден' });
-  }
-  try {
-    const sslDir = '/etc/letsencrypt/live';
-    if (fs.existsSync(sslDir) && fs.readdirSync(sslDir).length > 0) {
-      results.push({ name: 'SSL', status: 'ok', message: 'Сертификат найден' });
-    } else {
-      results.push({ name: 'SSL', status: 'warn', message: 'Не настроен' });
-    }
-  } catch {
-    results.push({ name: 'SSL', status: 'warn', message: 'Не проверено' });
-  }
-  const shareDir = config.storagePath || SHARES_DIR;
-  const recvDir = config.receivedPath || RECEIVED_DIR;
-  try {
-    fs.accessSync(shareDir, fs.constants.W_OK);
-    fs.accessSync(recvDir, fs.constants.W_OK);
-    results.push({ name: 'Хранилище', status: 'ok', message: 'Доступно для записи' });
-  } catch {
-    results.push({ name: 'Хранилище', status: 'err', message: 'Нет доступа' });
-  }
-  if (config.botEnabled && config.botToken) {
-    results.push({ name: 'Telegram бот', status: 'ok', message: 'Настроен' });
-  } else if (config.botEnabled) {
-    results.push({ name: 'Telegram бот', status: 'warn', message: 'Нет токена' });
-  } else {
-    results.push({ name: 'Telegram бот', status: 'warn', message: 'Отключён' });
-  }
-  try {
-    execSync('ping -c1 -W2 8.8.8.8 2>/dev/null || ping -n 1 -w 2000 8.8.8.8 2>nul');
-    results.push({ name: 'Интернет', status: 'ok', message: 'Доступен' });
-  } catch {
-    results.push({ name: 'Интернет', status: 'err', message: 'Нет связи' });
-  }
-  res.json({ results });
+  try { require('child_process').execSync('which nginx 2>/dev/null'); results.push({ name: 'Nginx', status: 'ok', message: 'OK' }); }
+  catch (e) { results.push({ name: 'Nginx', status: 'warn', message: 'Не найден' }); }
+  var sd = config.storagePath || SHARES_DIR;
+  try { fs.accessSync(sd, fs.constants.W_OK); results.push({ name: 'Хранилище', status: 'ok', message: 'OK' }); }
+  catch (e) { results.push({ name: 'Хранилище', status: 'err', message: 'Нет доступа' }); }
+  if (config.botEnabled && config.botToken) results.push({ name: 'Telegram', status: 'ok', message: 'Настроен' });
+  else results.push({ name: 'Telegram', status: 'warn', message: config.botEnabled ? 'Нет токена' : 'Выключен' });
+  res.json({ results: results });
 });
 
-app.get('/api/public/share/:enc', (req, res) => {
+app.get('/api/public/share/:enc', function(req, res) {
   if (config.stealthEnabled) return res.status(404).send('Not Found');
-  const id = decodeId(req.params.enc);
-  const s = shares.find(x => x.id === id && x.expiresAt > Date.now());
+  var id = did(req.params.enc);
+  var s = shares.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
   if (!s) return res.status(404).json({ error: 'Not found' });
-  const pub = { ...s };
-  if (s.password) {
-    pub.hasPassword = true;
-    pub.files = [];
-    pub.cover = '';
-  }
-  const cfg = { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme };
-  res.json({ share: pub, config: cfg });
+  var pub = JSON.parse(JSON.stringify(s));
+  if (s.password) { pub.hasPassword = true; pub.files = []; pub.cover = ''; }
+  res.json({ share: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme } });
 });
 
-app.post('/api/public/share/:enc/verify', (req, res) => {
-  const id = decodeId(req.params.enc);
-  const s = shares.find(x => x.id === id);
+app.post('/api/public/share/:enc/verify', function(req, res) {
+  var id = did(req.params.enc);
+  var s = shares.find(function(x) { return x.id === id; });
   if (!s) return res.status(404).json({ error: 'Not found' });
-  if (s.password === req.body.password) {
-    res.json({ ok: true, share: s });
-  } else {
-    res.status(401).json({ error: 'Wrong password' });
-  }
+  if (s.password === (req.body || {}).password) res.json({ ok: true, share: s });
+  else res.status(401).json({ error: 'Wrong' });
 });
 
-app.get('/api/public/upload/:enc', (req, res) => {
+app.get('/api/public/upload/:enc', function(req, res) {
   if (config.stealthEnabled) return res.status(404).send('Not Found');
-  const id = decodeId(req.params.enc);
-  const u = uploads.find(x => x.id === id && x.expiresAt > Date.now());
+  var id = did(req.params.enc);
+  var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
   if (!u) return res.status(404).json({ error: 'Not found' });
-  const pub = { ...u };
-  if (u.password) {
-    pub.hasPassword = true;
-  }
-  const cfg = { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme };
-  res.json({ upload: pub, config: cfg });
+  var pub = JSON.parse(JSON.stringify(u));
+  if (u.password) pub.hasPassword = true;
+  res.json({ upload: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme } });
 });
 
-app.post('/api/public/upload/:enc/verify', (req, res) => {
-  const id = decodeId(req.params.enc);
-  const u = uploads.find(x => x.id === id);
+app.post('/api/public/upload/:enc/verify', function(req, res) {
+  var id = did(req.params.enc);
+  var u = uploads.find(function(x) { return x.id === id; });
   if (!u) return res.status(404).json({ error: 'Not found' });
-  if (u.password === req.body.password) {
-    res.json({ ok: true, upload: u });
-  } else {
-    res.status(401).json({ error: 'Wrong password' });
-  }
+  if (u.password === (req.body || {}).password) res.json({ ok: true, upload: u });
+  else res.status(401).json({ error: 'Wrong' });
 });
 
-app.post('/api/public/upload/:enc/submit', recvUpload.single('file'), (req, res) => {
-  const id = decodeId(req.params.enc);
-  const u = uploads.find(x => x.id === id && x.expiresAt > Date.now());
-  if (!u) {
-    if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
-    return res.status(404).json({ error: 'Not found' });
-  }
-  if (u.password && req.body.password !== u.password) {
-    if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
-    return res.status(401).json({ error: 'Wrong password' });
-  }
-  const quota = getQuotaBytes();
-  const used = getCurrentUsageBytes();
-  if (req.file && used + req.file.size > quota) {
-    try { fs.unlinkSync(req.file.path); } catch {}
-    return res.status(413).json({ error: 'Quota exceeded' });
-  }
-  if (!req.file) return res.status(400).json({ error: 'No file' });
-  const entry = {
+app.post('/api/public/upload/:enc/submit', recvUp.single('file'), function(req, res) {
+  var id = did(req.params.enc);
+  var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
+  if (!u || !req.file) { if (req.file) try { fs.unlinkSync(req.file.path); } catch (e) {} return res.status(404).json({ error: 'Not found' }); }
+  var entry = {
     id: crypto.randomBytes(8).toString('hex'),
-    name: req.file.originalname,
-    storedName: req.file.filename,
-    size: req.file.size,
-    type: req.file.mimetype,
-    receivedAt: Date.now(),
-    uploadId: u.id,
-    source: u.title,
-    comment: (req.body.comment || '').slice(0, 100),
+    name: req.file.originalname, storedName: req.file.filename,
+    size: req.file.size, type: req.file.mimetype,
+    receivedAt: Date.now(), uploadId: u.id, source: u.title,
+    comment: ((req.body || {}).comment || '').slice(0, 100)
   };
   received.unshift(entry);
   u.usedUploads = (u.usedUploads || 0) + 1;
-  saveData();
-  addLog('Принят файл: ' + entry.name + ' (' + u.title + ')', 'success');
+  save();
+  log('Файл: ' + entry.name + ' ← ' + u.title, 'success');
   res.json({ ok: true, file: entry });
 });
 
-app.get('/api/file/:dir/:filename', (req, res) => {
-  let fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
-  if (!fs.existsSync(fp)) {
-    fp = path.join(RECEIVED_DIR, req.params.filename);
-  }
-  if (!fs.existsSync(fp)) return res.status(404).send('Not found');
-  res.sendFile(path.resolve(fp));
-});
-
-app.get('/api/download/:dir/:filename', (req, res) => {
-  let origName = req.params.filename;
-  const s = shares.find(x => x.id === req.params.dir);
-  if (s) {
-    const f = (s.files || []).find(x => x.storedName === req.params.filename);
-    if (f) origName = f.name;
-  }
-  const r = received.find(x => x.storedName === req.params.filename);
-  if (r) origName = r.name;
-
-  let fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
+app.get('/api/file/:dir/:filename', function(req, res) {
+  var fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
   if (!fs.existsSync(fp)) fp = path.join(RECEIVED_DIR, req.params.filename);
   if (!fs.existsSync(fp)) return res.status(404).send('Not found');
-  res.download(path.resolve(fp), origName);
-});
-
-app.get('/api/received/:id/download', auth, (req, res) => {
-  const r = received.find(x => x.id === req.params.id);
-  if (!r) return res.status(404).send('Not found');
-  const fp = path.join(RECEIVED_DIR, r.storedName);
-  if (!fs.existsSync(fp)) return res.status(404).send('File missing');
-  res.download(path.resolve(fp), r.name);
-});
-
-app.get('/api/received/:id/view', auth, (req, res) => {
-  const r = received.find(x => x.id === req.params.id);
-  if (!r) return res.status(404).send('Not found');
-  const fp = path.join(RECEIVED_DIR, r.storedName);
-  if (!fs.existsSync(fp)) return res.status(404).send('File missing');
   res.sendFile(path.resolve(fp));
+});
+
+app.get('/api/download/:dir/:filename', function(req, res) {
+  var orig = req.params.filename;
+  var s = shares.find(function(x) { return x.id === req.params.dir; });
+  if (s) { var f = (s.files || []).find(function(x) { return x.storedName === req.params.filename; }); if (f) orig = f.name; }
+  var r = received.find(function(x) { return x.storedName === req.params.filename; }); if (r) orig = r.name;
+  var fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
+  if (!fs.existsSync(fp)) fp = path.join(RECEIVED_DIR, req.params.filename);
+  if (!fs.existsSync(fp)) return res.status(404).send('Not found');
+  res.download(path.resolve(fp), orig);
 });
 
 if (distPath) {
-  app.get('*', (req, res) => {
+  app.get('*', function(req, res) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  app.get('*', (req, res) => {
-    res.status(503).send('<html><body style="background:#0a0e1a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>FileUpShare</h2><p style="opacity:0.5">Панель не собрана. Выполните: cd /opt/fileupshare && npm install && npm run build && systemctl restart fileupshare</p></div></body></html>');
+  app.get('*', function(req, res) {
+    res.send('<html><body style="background:#0a0e1a;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>FileUpShare</h2><p style="opacity:.4">Панель не собрана</p><p style="opacity:.3;font-size:13px">cd /opt/fileupshare && npm install && npm run build && systemctl restart fileupshare</p></div></body></html>');
   });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('FileUpShare v1.0.1 running on port ' + PORT);
-  addLog('Сервис запущен на порту ' + PORT, 'success');
+app.listen(PORT, '0.0.0.0', function() {
+  console.log('FileUpShare v1.0.1 on port ' + PORT);
+  log('Запуск на порту ' + PORT, 'success');
 });
