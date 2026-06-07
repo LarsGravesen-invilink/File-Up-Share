@@ -202,23 +202,63 @@ function pollBotCommands() {
         if (cbData === 'delete_msg') {
           tgApi('deleteMessage', { chat_id: cb.message.chat.id, message_id: cb.message.message_id });
           tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: 'Удалено' });
+        } else if (cbData === 'cmd_hide') {
+          config.stealthEnabled = true;
+          sessions = {}; saveSess(); save();
+          tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: '🔒 Панель скрыта' });
+          tgApi('editMessageText', {
+            chat_id: cb.message.chat.id, message_id: cb.message.message_id,
+            text: '🔒  <b>ПАНЕЛЬ СКРЫТА</b>\n\n🛡  Режим невидимки активирован\n🚫  Кнопка входа скрыта\n🔑  Сессии сброшены\n\n🔓  Восстановить: /show\n🖥  Терминал: <code>fileupshare-show</code>\n\n🕐  ' + fmtDate(Date.now()),
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '🔓 Показать панель', callback_data: 'cmd_show' }], [{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+          });
+          log('Stealth ON (кнопка)', 'warn');
+        } else if (cbData === 'cmd_show') {
+          config.stealthEnabled = false; save();
+          tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: '🔓 Панель восстановлена' });
+          tgApi('editMessageText', {
+            chat_id: cb.message.chat.id, message_id: cb.message.message_id,
+            text: '🔓  <b>ПАНЕЛЬ ВОССТАНОВЛЕНА</b>\n\n✅  Режим невидимки отключён\n🔑  Кнопка входа доступна\n\n🔒  Скрыть: /hide\n🖥  Терминал: <code>fileupshare-hide</code>\n\n🕐  ' + fmtDate(Date.now()),
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '🔒 Скрыть панель', callback_data: 'cmd_hide' }], [{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+          });
+          log('Stealth OFF (кнопка)', 'success');
         } else if (cbData.indexOf('get_file:') === 0) {
           var fid = cbData.split(':')[1];
           botSendFile(cb.message.chat.id, fid);
           tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: 'Отправляю файл...' });
         }
       }
-      if (upd.message && upd.message.text) {
-        var txt = upd.message.text.trim();
-        var chatId = upd.message.chat.id;
-        if (txt === '/hide') {
+      var msg = upd.message || upd.channel_post;
+      if (msg && msg.text) {
+        var cmd = msg.text.trim().split('@')[0].toLowerCase();
+        var chatId = msg.chat.id;
+        if (cmd === '/hide') {
           config.stealthEnabled = true;
           sessions = {}; saveSess(); save();
-          tgApi('sendMessage', { chat_id: chatId, text: '🔒 Панель скрыта. Сессии сброшены.\nВернуть: /show' });
+          var hideText = '🔒  <b>ПАНЕЛЬ СКРЫТА</b>\n\n' +
+            '🛡  Режим невидимки активирован\n' +
+            '🚫  Кнопка входа скрыта на главной странице\n' +
+            '🔑  Все активные сессии сброшены\n\n' +
+            '📤  Публичные страницы раздач и загрузок\n      продолжают работать\n\n' +
+            '🔓  Восстановить: /show\n' +
+            '🖥  Терминал: <code>fileupshare-show</code>\n\n' +
+            '🕐  ' + fmtDate(Date.now());
+          tgApi('sendMessage', { chat_id: chatId, text: hideText, parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '🔓 Показать панель', callback_data: 'cmd_show' }], [{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+          });
           log('Stealth ON (бот)', 'warn');
-        } else if (txt === '/show') {
+        } else if (cmd === '/show') {
           config.stealthEnabled = false; save();
-          tgApi('sendMessage', { chat_id: chatId, text: '🔓 Панель восстановлена.' });
+          var showText = '🔓  <b>ПАНЕЛЬ ВОССТАНОВЛЕНА</b>\n\n' +
+            '✅  Режим невидимки отключён\n' +
+            '🔑  Кнопка входа доступна на главной странице\n\n' +
+            '🔒  Скрыть: /hide\n' +
+            '🖥  Терминал: <code>fileupshare-hide</code>\n\n' +
+            '🕐  ' + fmtDate(Date.now());
+          tgApi('sendMessage', { chat_id: chatId, text: showText, parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '🔒 Скрыть панель', callback_data: 'cmd_hide' }], [{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+          });
           log('Stealth OFF (бот)', 'success');
         }
       }

@@ -132,6 +132,7 @@ export function UploadView({ encoded }: Props) {
       hideLifetime={config.hideLifetimeOnPage || upload.hideTimer}
       adEnabled={config.adEnabled}
       adText={config.adText}
+      pageTheme={config.pageTheme}
     >
       <AnimatePresence mode="wait">
         {needPassword ? (

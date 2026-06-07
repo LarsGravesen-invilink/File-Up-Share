@@ -159,7 +159,7 @@ export function Panel({
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-8 lg:p-6 lg:pb-10">
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-4 lg:p-6 lg:pb-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={page}

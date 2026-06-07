@@ -107,6 +107,7 @@ export function ShareView({ encoded }: Props) {
       hideLifetime={config.hideLifetimeOnPage || share.hideTimer}
       adEnabled={config.adEnabled}
       adText={config.adText}
+      pageTheme={config.pageTheme}
     >
       <AnimatePresence mode="wait">
         {needPassword ? (

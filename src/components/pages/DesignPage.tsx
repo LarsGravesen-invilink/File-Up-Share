@@ -3,20 +3,7 @@ import { motion } from 'framer-motion';
 import { Palette, Check, Eye, EyeOff, Type } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings } from '../../types';
-
-const themes = [
-  { id: 'default', name: 'Тёмный минимал', bg: '#0f172a', text: '#e2e8f0', accent: '#06b6d4', dark: true },
-  { id: 'midnight', name: 'Полночь', bg: '#0a0a1a', text: '#c8ceff', accent: '#818cf8', dark: true },
-  { id: 'forest', name: 'Тёмный лес', bg: '#0a1a0f', text: '#c8e6c9', accent: '#4caf50', dark: true },
-  { id: 'ocean', name: 'Глубокий океан', bg: '#0a1520', text: '#b3e5fc', accent: '#0288d1', dark: true },
-  { id: 'ember', name: 'Угли', bg: '#1a0a0a', text: '#ffcdd2', accent: '#ef5350', dark: true },
-  { id: 'void', name: 'Пустота', bg: '#050505', text: '#a0a0a0', accent: '#7c3aed', dark: true },
-  { id: 'snow', name: 'Снег', bg: '#f8fafc', text: '#334155', accent: '#3b82f6', dark: false },
-  { id: 'cream', name: 'Кремовый', bg: '#fefce8', text: '#713f12', accent: '#ca8a04', dark: false },
-  { id: 'lavender', name: 'Лаванда', bg: '#f5f3ff', text: '#4c1d95', accent: '#8b5cf6', dark: false },
-  { id: 'mint', name: 'Мята', bg: '#ecfdf5', text: '#065f46', accent: '#10b981', dark: false },
-  { id: 'rose', name: 'Роза', bg: '#fff1f2', text: '#9f1239', accent: '#f43f5e', dark: false },
-];
+import { themes } from '../../themes';
 
 interface Props {
   settings: Settings;
