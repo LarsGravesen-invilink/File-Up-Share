@@ -236,6 +236,23 @@ a[class*="rounded-lg"]:active {
   animation: marquee 30s linear infinite;
 }
 
+/* Блокировка копирования текста и медиа на публичных страницах */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+.no-select img,
+.no-select video {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* Ссылки внутри защищённого блока — кликабельны */
+.no-select a {
+  pointer-events: auto;
+}
+
 .public-page-link a,
 .public-page-link [data-link] {
   color: rgba(6, 182, 212, 0.8);

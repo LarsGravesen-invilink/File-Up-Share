@@ -123,12 +123,12 @@ export function TelegramPage({ settings, onUpdate }: Props) {
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-xs text-white/30">Токен бота</label>
-            <input value={token} onChange={e => setToken(e.target.value)} placeholder="123456789:ABCdef..."
+            <input value={token} onChange={e => setToken(e.target.value)} onFocus={e => e.currentTarget.select()} placeholder="123456789:ABCdef..."
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white placeholder-white/15 outline-none focus:border-cyan-500/30" />
           </div>
           <div>
             <label className="mb-1.5 block text-xs text-white/30">Chat ID / Channel ID</label>
-            <input value={chatId} onChange={e => setChatId(e.target.value)} placeholder="-1001234567890"
+            <input value={chatId} onChange={e => setChatId(e.target.value)} onFocus={e => e.currentTarget.select()} placeholder="-1001234567890"
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white placeholder-white/15 outline-none focus:border-cyan-500/30" />
           </div>
         </div>
@@ -165,7 +165,7 @@ export function TelegramPage({ settings, onUpdate }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-xs text-white/30">Интервал проверки</label>
-            <input type="number" value={pollInterval} onChange={e => setPollInterval(Math.max(1, Number(e.target.value)))} min={1}
+            <input type="number" value={pollInterval} onChange={e => setPollInterval(Math.max(1, Number(e.target.value)))} onFocus={e => e.currentTarget.select()} min={1}
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30" />
           </div>
           <div>

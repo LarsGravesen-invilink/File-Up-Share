@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PublicLayout } from './PublicLayout';
+import { AudioPlayer } from './AudioPlayer';
+import { autolink } from '../utils/autolink';
 import { Download, Eye, Lock, Loader2, Volume2, ChevronLeft, ChevronRight, Film, Image } from 'lucide-react';
 import { formatBytes } from '../helpers';
 import * as api from '../api';
@@ -147,7 +149,7 @@ export function ShareView({ encoded }: Props) {
             key="content"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-4 no-select"
           >
             {share.cover && (
               <div className="overflow-hidden rounded-xl">
@@ -159,7 +161,7 @@ export function ShareView({ encoded }: Props) {
               <div>
                 <h1 className="text-lg font-bold text-white sm:text-xl">{share.title}</h1>
                 {share.comment && (
-                  <p className="mt-1 text-xs text-white/30 sm:text-sm">{share.comment}</p>
+                  <p className="mt-1 text-xs text-white/30 sm:text-sm">{autolink(share.comment)}</p>
                 )}
               </div>
             )}
@@ -229,7 +231,7 @@ export function ShareView({ encoded }: Props) {
               <div className="space-y-2">
                 {audioFiles.map((file: any) => (
                   <div key={file.storedName} className="glass-card rounded-xl p-3">
-                    <div className="mb-2 flex items-center gap-3">
+                    <div className="mb-2.5 flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/20">
                         <Volume2 className="h-3.5 w-3.5 text-violet-400" />
                       </div>
@@ -238,14 +240,12 @@ export function ShareView({ encoded }: Props) {
                         <div className="text-[10px] text-white/20">{formatBytes(file.size)}</div>
                       </div>
                     </div>
-                    <audio
-                      ref={el => { if (el) audioRefs.current[file.storedName] = el; }}
+                    <AudioPlayer
                       src={api.getFileUrl(share.id, file.storedName)}
-                      controls
                       controlsList={!canDownload ? 'nodownload' : ''}
-                      className="h-8 w-full"
                       onPlay={() => handleAudioPlay(file.storedName)}
-                      onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
+                      onContextMenu={!canDownload ? (e: React.MouseEvent<HTMLAudioElement>) => e.preventDefault() : undefined}
+                      audioRef={el => { if (el) audioRefs.current[file.storedName] = el; else delete audioRefs.current[file.storedName]; }}
                     />
                   </div>
                 ))}

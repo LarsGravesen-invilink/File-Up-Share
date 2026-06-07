@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PublicLayout } from './PublicLayout';
 import { UploadModal } from './UploadModal';
+import { autolink } from '../utils/autolink';
 import { Plus, X, Send, CheckCircle, Loader2, Lock, FileIcon, MessageSquare } from 'lucide-react';
 import { formatBytes } from '../helpers';
 import * as api from '../api';
@@ -175,15 +176,15 @@ export function UploadView({ encoded }: Props) {
             className="space-y-4"
           >
             {upload.cover && (
-              <div className="overflow-hidden rounded-xl">
+              <div className="overflow-hidden rounded-xl no-select">
                 <img src={upload.cover} alt="" className="aspect-[4/3] w-full object-cover" />
               </div>
             )}
 
-            <div>
+            <div className="no-select">
               <h1 className="text-lg font-bold text-white sm:text-xl">{upload.title}</h1>
               {upload.comment && (
-                <p className="mt-1 text-xs text-white/30 sm:text-sm">{upload.comment}</p>
+                <p className="mt-1 text-xs text-white/30 sm:text-sm">{autolink(upload.comment)}</p>
               )}
             </div>
 

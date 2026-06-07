@@ -66,6 +66,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
             <input
               value={newLogin}
               onChange={e => setNewLogin(e.target.value)}
+              onFocus={e => e.currentTarget.select()}
               placeholder="admin"
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
             />
@@ -77,6 +78,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
                 type={showPass ? 'text' : 'password'}
                 value={newPass}
                 onChange={e => setNewPass(e.target.value)}
+                onFocus={e => e.currentTarget.select()}
                 placeholder="••••••••"
                 className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 pr-10 text-sm text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
               />
@@ -95,6 +97,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
               type={showPass ? 'text' : 'password'}
               value={confirmPass}
               onChange={e => setConfirmPass(e.target.value)}
+              onFocus={e => e.currentTarget.select()}
               placeholder="••••••••"
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
             />
@@ -142,6 +145,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
                 type="text"
                 value={settings.sharePassword}
                 onChange={e => onUpdate({ sharePassword: e.target.value })}
+                onFocus={e => e.currentTarget.select()}
                 placeholder="Пароль для всех раздач"
                 className="mt-2 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
               />
@@ -161,6 +165,7 @@ export function SecurityPage({ settings, onUpdate, onChangeCredentials, onLogout
                 type="text"
                 value={settings.uploadPassword}
                 onChange={e => onUpdate({ uploadPassword: e.target.value })}
+                onFocus={e => e.currentTarget.select()}
                 placeholder="Пароль для всех загрузок"
                 className="mt-2 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
               />

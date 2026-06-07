@@ -171,6 +171,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
                   type="number"
                   value={settings.quotaValue}
                   onChange={e => onUpdate({ quotaValue: Number(e.target.value) })}
+                  onFocus={e => e.currentTarget.select()}
                   min={1}
                   className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
                 />
