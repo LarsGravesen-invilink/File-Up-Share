@@ -218,7 +218,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-white/15">Применяется мгновенно ко всей панели</p>
+            <p className="mt-1.5 text-[10px] text-white/15">Пропорционально увеличивает все элементы панели</p>
           </div>
           <div>
             <label className="mb-2 flex items-center gap-1 text-xs text-white/30">
@@ -239,7 +239,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-white/15">Влияет на шапку и логотип (не на надпись «Панель администратора»)</p>
+            <p className="mt-1.5 text-[10px] text-white/15">Увеличивает шапку панели, логотип и кнопку меню</p>
           </div>
         </div>
       </motion.div>
@@ -267,7 +267,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
                 <option key={tz.value} value={tz.value}>{tz.label}</option>
               ))}
             </select>
-            <p className="mt-1.5 text-[10px] text-white/15">Используется для отображения времени в дашборде и логах</p>
+            <p className="mt-1.5 text-[10px] text-white/15">Используется во всей панели: дашборд, логи, таймеры, уведомления бота</p>
           </div>
         </div>
       </motion.div>

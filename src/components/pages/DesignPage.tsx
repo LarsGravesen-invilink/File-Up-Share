@@ -92,6 +92,9 @@ export function DesignPage({ settings, onUpdate }: Props) {
             </div>
             <Toggle checked={settings.hideLifetimeOnPage} onChange={v => onUpdate({ hideLifetimeOnPage: v })} />
           </div>
+          {settings.hideLifetimeOnPage && (
+            <p className="px-1 text-[10px] text-white/15">Глобально скрывает обратный отсчёт на всех публичных страницах</p>
+          )}
 
           <div className="rounded-lg bg-white/3 px-4 py-3">
             <div className="flex items-center justify-between">
@@ -102,13 +105,16 @@ export function DesignPage({ settings, onUpdate }: Props) {
               <Toggle checked={settings.adEnabled} onChange={v => onUpdate({ adEnabled: v })} />
             </div>
             {settings.adEnabled && (
-              <textarea
-                value={settings.adText}
-                onChange={e => onUpdate({ adText: e.target.value })}
-                placeholder="Текст (ссылки станут кликабельными)"
-                rows={2}
-                className="mt-3 w-full resize-none rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
-              />
+              <>
+                <textarea
+                  value={settings.adText}
+                  onChange={e => onUpdate({ adText: e.target.value })}
+                  placeholder="Текст (ссылки станут кликабельными)"
+                  rows={2}
+                  className="mt-3 w-full resize-none rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
+                />
+                <p className="mt-1 text-[10px] text-white/15">Отображается внизу публичных страниц. Ссылки автоматически кликабельны.</p>
+              </>
             )}
           </div>
         </div>
