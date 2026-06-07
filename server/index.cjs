@@ -235,9 +235,20 @@ cleanupExpired();
 
 app.use(express.json({ limit: '50mb' }));
 
-const distPath = path.join(__dirname, '../dist');
-if (fs.existsSync(distPath)) {
+const distCandidates = [
+  path.join(__dirname, '../dist'),
+  path.join(__dirname, 'dist'),
+  '/opt/fileupshare/dist',
+];
+let distPath = null;
+for (const dp of distCandidates) {
+  if (fs.existsSync(path.join(dp, 'index.html'))) { distPath = dp; break; }
+}
+if (distPath) {
   app.use(express.static(distPath));
+  console.log('Serving static from: ' + distPath);
+} else {
+  console.log('WARNING: dist/index.html not found, checked: ' + distCandidates.join(', '));
 }
 
 const shareStorage = multer.diskStorage({
@@ -618,9 +629,13 @@ app.get('/api/received/:id/view', auth, (req, res) => {
   res.sendFile(path.resolve(fp));
 });
 
-if (fs.existsSync(distPath)) {
+if (distPath) {
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  app.get('*', (req, res) => {
+    res.status(503).send('<html><body style="background:#0a0e1a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>FileUpShare</h2><p style="opacity:0.5">Панель не собрана. Выполните: cd /opt/fileupshare && npm install && npm run build && systemctl restart fileupshare</p></div></body></html>');
   });
 }
 
