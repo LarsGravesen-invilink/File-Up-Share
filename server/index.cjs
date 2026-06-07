@@ -458,7 +458,7 @@ var shareUp = multer({ storage: shareStor, limits: { fileSize: 10737418240 } });
 var recvUp = multer({ storage: recvStor, limits: { fileSize: 10737418240 } });
 
 function auth(req, res, next) {
-  var t = (req.headers.authorization || '').replace('Bearer ', '');
+  var t = (req.headers.authorization || '').replace('Bearer ', '') || req.query.token || '';
   if (!t || !sessions[t] || sessions[t].expiresAt < Date.now()) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }

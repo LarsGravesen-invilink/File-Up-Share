@@ -55,7 +55,14 @@ export function Panel({
   onAddUpload, onExtendUpload, onRemoveUpload, onRemoveReceived,
   onChangeCredentials, onRestart, onLogout,
 }: Props) {
-  const [page, setPage] = useState<Page>('info');
+  const [page, setPageState] = useState<Page>(() => {
+    const saved = localStorage.getItem('fus_page');
+    if (saved && ['info','create-share','create-upload','my-shares','my-uploads','received','design','settings','security','telegram','about'].includes(saved)) {
+      return saved as Page;
+    }
+    return 'info';
+  });
+  const setPage = (p: Page) => { setPageState(p); localStorage.setItem('fus_page', p); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const uiScaleClass = useMemo(() => {
@@ -152,7 +159,7 @@ export function Panel({
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-8 lg:p-6 lg:pb-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={page}

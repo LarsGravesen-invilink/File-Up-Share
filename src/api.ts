@@ -69,10 +69,19 @@ export function uploadFiles(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', API_BASE + '/shares/' + shareId + '/upload');
     if (authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100)); };
-    xhr.onload = () => { xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(xhr.responseText)); };
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.onabort = () => reject(new Error('Cancelled'));
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        onProgress(pct >= 100 ? 95 : pct);
+      }
+    });
+    xhr.addEventListener('load', () => {
+      if (onProgress) onProgress(100);
+      if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(xhr.responseText));
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.addEventListener('abort', () => reject(new Error('Cancelled')));
     xhr.send(fd);
     (window as any).__currentUpload = xhr;
   });
@@ -92,10 +101,19 @@ export function uploadPublicFile(
     if (password) fd.append('password', password);
     const xhr = new XMLHttpRequest();
     xhr.open('POST', API_BASE + '/public/upload/' + encoded + '/submit');
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100)); };
-    xhr.onload = () => { xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(xhr.responseText)); };
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.onabort = () => reject(new Error('Cancelled'));
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        onProgress(pct >= 100 ? 95 : pct);
+      }
+    });
+    xhr.addEventListener('load', () => {
+      if (onProgress) onProgress(100);
+      if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(xhr.responseText));
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.addEventListener('abort', () => reject(new Error('Cancelled')));
     xhr.send(fd);
     (window as any).__currentUpload = xhr;
   });
@@ -144,8 +162,8 @@ export const verifyUploadPassword = (encoded: string, password: string) =>
 
 export const getFileUrl = (dir: string, name: string) => API_BASE + '/file/' + dir + '/' + name;
 export const getDownloadUrl = (dir: string, name: string) => API_BASE + '/download/' + dir + '/' + name;
-export const getReceivedDownloadUrl = (id: string) => API_BASE + '/received/' + id + '/download';
-export const getReceivedViewUrl = (id: string) => API_BASE + '/received/' + id + '/view';
+export const getReceivedDownloadUrl = (id: string) => API_BASE + '/received/' + id + '/download?token=' + (authToken || '');
+export const getReceivedViewUrl = (id: string) => API_BASE + '/received/' + id + '/view?token=' + (authToken || '');
 
 export const checkVersion = (force?: boolean) =>
   request<{ current: string; latest: string; hasUpdate: boolean }>('/version' + (force ? '?force=1' : ''));

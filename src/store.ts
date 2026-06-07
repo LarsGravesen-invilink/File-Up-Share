@@ -107,6 +107,7 @@ export function useStore() {
   }, [session.loggedIn]);
 
   const updateSettings = useCallback(async (patch: Partial<Settings>) => {
+    setSettings(prev => ({ ...prev, ...patch }));
     try {
       const updated = await api.updateConfig(patch);
       if (updated && typeof updated === 'object') {
