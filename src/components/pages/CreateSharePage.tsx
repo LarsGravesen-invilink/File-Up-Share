@@ -1,346 +1,442 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { generateId, formatBytes, type ShareItem, type ShareFile, type Settings } from '../../types';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, X, Upload, Eye, Download, Lock, Clock, FileIcon, Image as LucideImage, Film, Music, ImagePlus } from 'lucide-react';
+import { Toggle } from '../Toggle';
+import { DemoModal } from '../DemoModal';
+import { UploadModal } from '../UploadModal';
+import { SuccessModal } from '../SuccessModal';
+import { CoverCropper } from '../CoverCropper';
+import type { Share, ShareFile, Settings } from '../../types';
+import { generateId, formatBytes, durationToMs } from '../../helpers';
+import * as api from '../../api';
 
 interface Props {
-  onCreateShare: (item: ShareItem) => void;
-  onPreview: (item: ShareItem) => void;
   settings: Settings;
+  onAdd: (share: Share) => Promise<Share | null>;
 }
 
-export const CreateSharePage: React.FC<Props> = ({ onCreateShare, onPreview, settings }) => {
-  const globalPw = settings.sharePasswordEnabled;
-  const [files, setFiles] = useState<ShareFile[]>([]);
-  const [cover, setCover] = useState('');
-  const [coverSrc, setCoverSrc] = useState('');
-  const [cropMode, setCropMode] = useState(false);
-  const [cropPos, setCropPos] = useState({ x: 50, y: 50 });
+function getFileIcon(type: string) {
+  if (type.startsWith('video')) return <Film className="h-3.5 w-3.5 text-blue-400" />;
+  if (type.startsWith('audio')) return <Music className="h-3.5 w-3.5 text-emerald-400" />;
+  if (type.startsWith('image')) return <LucideImage className="h-3.5 w-3.5 text-violet-400" />;
+  return <FileIcon className="h-3.5 w-3.5 text-cyan-400" />;
+}
+
+function isMediaFile(type: string) {
+  return type.startsWith('video') || type.startsWith('audio') || type.startsWith('image');
+}
+
+export function CreateSharePage({ settings, onAdd }: Props) {
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
-  const [hideExt, setHideExt] = useState(false);
-  const [mode, setMode] = useState<'download' | 'view'>('download');
-  const [allowDl, setAllowDl] = useState(true);
-  const [ltOn, setLtOn] = useState(true);
-  const [ltH, setLtH] = useState(24);
-  const [ltM, setLtM] = useState(0);
-  const [pwOn, setPwOn] = useState(false);
-  const [pw, setPw] = useState('');
-  const [dragOver, setDragOver] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [mode, setMode] = useState<'view' | 'download'>('view');
+  const [allowDownload, setAllowDownload] = useState(false);
+  const [hideTimer, setHideTimer] = useState(false);
+  const [lifetime, setLifetime] = useState(24);
+  const [lifetimeUnit, setLifetimeUnit] = useState<'hours' | 'minutes'>('hours');
+  const [usePassword, setUsePassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [hideExtensions, setHideExtensions] = useState(false);
+  const [coverData, setCoverData] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+
+  const [showDemo, setShowDemo] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const abortRef = useRef<boolean>(false);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [published, setPublished] = useState<{ link: string; title: string } | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
-  const coverFileRef = useRef<HTMLInputElement>(null);
-  const cropAreaRef = useRef<HTMLDivElement>(null);
 
-  const addFiles = useCallback((fileList: FileList) => {
-    Array.from(fileList).forEach(f => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFiles(prev => [...prev, { name: f.name, type: f.type, data: e.target?.result as string, size: f.size }]);
-      };
-      reader.readAsDataURL(f);
-    });
-  }, []);
-
-  const removeFile = (i: number) => setFiles(prev => prev.filter((_, idx) => idx !== i));
-  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); };
-
-  const handleCoverSelect = useCallback((f: File) => {
-    if (!f.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCoverSrc(e.target?.result as string);
-      setCropMode(true);
-      setCropPos({ x: 50, y: 50 });
-    };
-    reader.readAsDataURL(f);
-  }, []);
-
-  const applyCrop = () => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 800; canvas.height = 600;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const scale = Math.max(800 / img.width, 600 / img.height);
-      const sw = 800 / scale, sh = 600 / scale;
-      const sx = (img.width - sw) * (cropPos.x / 100);
-      const sy = (img.height - sh) * (cropPos.y / 100);
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 800, 600);
-      setCover(canvas.toDataURL('image/jpeg', 0.85));
-      setCropMode(false);
-    };
-    img.src = coverSrc;
+  const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const newFiles = Array.from(e.target.files);
+    if (mode === 'view') {
+      const mediaOnly = newFiles.filter(f => isMediaFile(f.type));
+      setFiles(prev => [...prev, ...mediaOnly]);
+    } else {
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+    if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handleCropMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!cropAreaRef.current) return;
-    const rect = cropAreaRef.current.getBoundingClientRect();
-    const cx = 'touches' in e ? e.touches[0].clientX : (e.buttons ? e.clientX : -1);
-    if (cx < 0) return;
-    const cy = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setCropPos({ x: Math.max(0, Math.min(100, ((cx - rect.left) / rect.width) * 100)), y: Math.max(0, Math.min(100, ((cy - rect.top) / rect.height) * 100)) });
+  const removeFile = (idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const fileIcon = (t: string) => {
-    if (t.startsWith('image/')) return '🖼️';
-    if (t.startsWith('video/')) return '🎬';
-    if (t.startsWith('audio/')) return '🎵';
-    if (t.includes('pdf')) return '📄';
-    if (t.includes('zip') || t.includes('rar')) return '📦';
-    return '📎';
+  const canPublish = Boolean(title.trim() || files.length > 0);
+
+  const handleModeChange = (newMode: 'view' | 'download') => {
+    setMode(newMode);
+    if (newMode === 'view') {
+      setFiles(prev => prev.filter(f => isMediaFile(f.type)));
+      setAllowDownload(false);
+    }
   };
 
-  const buildItem = (): ShareItem => {
-    const f = files[0];
-    return {
-      id: generateId(),
-      files,
-      fileName: f?.name || '',
-      fileType: f?.type || '',
-      fileData: f?.data || '',
-      fileSize: f?.size || 0,
-      title, comment, cover, hideExtension: hideExt, allowDownload: mode === 'download' ? true : allowDl,
-      mode, lifetimeEnabled: ltOn, lifetimeHours: ltH, lifetimeMinutes: ltM,
-      password: pwOn ? pw : '', createdAt: Date.now(),
-    };
+  const publish = async () => {
+    if (!canPublish) return;
+
+    const id = generateId();
+    const now = Date.now();
+    const ms = durationToMs(lifetime, lifetimeUnit);
+
+    const shareFiles: ShareFile[] = files.map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      storedName: '',
+    } as ShareFile & { storedName: string }));
+
+    const share: Share = {
+      id,
+      title: title.trim() || 'Без названия',
+      comment: comment.trim(),
+      files: shareFiles,
+      cover: coverData,
+      mode,
+      allowDownload: mode === 'download' ? true : allowDownload,
+      lifetime,
+      lifetimeUnit,
+      hideExtensions,
+      hideTimer,
+      password: usePassword ? password : '',
+      createdAt: now,
+      expiresAt: now + ms,
+      link: '',
+    } as Share & { hideTimer?: boolean };
+
+    if (files.length > 0) {
+      setUploading(true);
+      setUploadProgress(0);
+
+      try {
+        const uploadResult = await api.uploadFiles(id, files, (progress) => {
+          setUploadProgress(progress);
+        });
+        share.files = uploadResult.files;
+        share.id = uploadResult.shareId;
+      } catch {
+        setUploading(false);
+        return;
+      }
+    }
+
+    const result = await onAdd(share);
+    setUploading(false);
+
+    if (result) {
+      setPublished({
+        link: window.location.origin + result.link,
+        title: result.title,
+      });
+    }
   };
 
   const cancelUpload = () => {
-    abortRef.current = true;
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    setCreating(false);
+    api.cancelUpload();
+    setUploading(false);
     setUploadProgress(0);
   };
 
-  const publish = () => {
-    if (!files.length) return;
-    abortRef.current = false;
-    setCreating(true);
-    setUploadProgress(0);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
-    // Simulate realistic upload progress tied to total file size
-    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-    const duration = Math.max(600, Math.min(totalSize / 500, 8000)); // 0.6s–8s based on size
-    const step = 100 / (duration / 50);
-    let progress = 0;
-
-    progressIntervalRef.current = setInterval(() => {
-      if (abortRef.current) return;
-      progress = Math.min(progress + step * (0.5 + Math.random()), 95);
-      setUploadProgress(progress);
-    }, 50);
-
-    // Actual API call via onCreateShare (async)
-    Promise.resolve().then(async () => {
-      // Give readers time to finish (files are already base64 at this point)
-      await new Promise(r => setTimeout(r, duration));
-      if (abortRef.current) return;
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      setUploadProgress(100);
-      await new Promise(r => setTimeout(r, 200));
-      if (abortRef.current) return;
-      onCreateShare(buildItem());
-      setCreating(false);
-      setUploadProgress(0);
-    });
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setCoverFile(file);
+      setShowCropper(true);
+    }
+    if (coverInputRef.current) coverInputRef.current.value = '';
   };
 
-  const preview = () => { if (!files.length) return; onPreview({ ...buildItem(), id: 'preview' }); };
+  const handleCoverCropped = (dataUrl: string) => {
+    setCoverData(dataUrl);
+    setShowCropper(false);
+    setCoverFile(null);
+  };
 
-  const ic = "w-full h-9 px-3 rounded-md bg-surface/60 border border-border text-[13px] text-text placeholder:text-text-muted/40 outline-none focus:border-accent/50 transition-all";
-  const dc = "w-full h-9 px-3 rounded-md bg-surface/20 border border-border/50 text-[13px] text-text-muted/50 outline-none cursor-not-allowed";
+  const closeSuccess = () => {
+    setPublished(null);
+    setTitle('');
+    setComment('');
+    setFiles([]);
+    setPassword('');
+    setUsePassword(false);
+    setCoverData('');
+  };
+
+  const demoShare = {
+    title: title || 'Демо раздача',
+    comment,
+    cover: coverData,
+    files: files.map(f => ({ name: f.name, size: f.size, type: f.type, storedName: '' })),
+    mode,
+    allowDownload: mode === 'download' ? true : allowDownload,
+    hideExtensions,
+    hideTimer,
+    password: usePassword ? password : '',
+    expiresAt: Date.now() + durationToMs(lifetime, lifetimeUnit),
+  };
 
   return (
-    <div className="space-y-4 animate-in">
-      {/* Upload progress modal */}
-      {creating && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm rounded-2xl border border-accent/20 bg-surface/95 backdrop-blur-xl p-6 animate-in shadow-2xl">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent animate-bounce">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold text-text">Идёт загрузка</div>
-                <div className="text-[10px] text-text-muted">{files.length} файл{files.length > 1 ? 'а/ов' : ''} · {formatBytes(files.reduce((s, f) => s + f.size, 0))}</div>
-              </div>
-            </div>
+    <div className="space-y-5">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card rounded-xl p-5"
+      >
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+          <Upload className="h-4 w-4 text-cyan-400" />
+          Создать раздачу
+        </h3>
 
-            {/* Progress bar */}
-            <div className="relative h-2 rounded-full bg-border/60 overflow-hidden mb-2">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-100"
-                style={{ width: `${uploadProgress}%` }}
-              />
-              <div className="absolute inset-0 rounded-full bg-accent/20 animate-pulse" style={{ display: uploadProgress >= 100 ? 'none' : 'block' }} />
-            </div>
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-[10px] text-text-muted">
-                {uploadProgress < 100 ? 'Передача данных...' : 'Завершение...'}
-              </span>
-              <span className="text-[10px] font-mono text-accent">{Math.round(uploadProgress)}%</span>
-            </div>
-
-            <button
-              onClick={cancelUpload}
-              className="w-full h-9 rounded-lg border border-border text-[12px] font-medium text-text-muted hover:text-text hover:border-accent/40 transition-colors"
-            >
-              Отменить
-            </button>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs text-white/30">Заголовок</label>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Название раздачи"
+              className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/15 outline-none transition focus:border-cyan-500/30"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Crop modal */}
-      {cropMode && coverSrc && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setCropMode(false)} />
-          <div className="relative w-full max-w-md rounded-xl border border-accent/20 bg-surface/95 backdrop-blur-xl p-4 animate-in">
-            <h3 className="text-[13px] font-semibold text-text text-center mb-2">Выберите область 4:3</h3>
-            <p className="text-[10px] text-text-muted text-center mb-3">Перетаскивайте для выбора</p>
-            <div ref={cropAreaRef} className="relative w-full rounded-lg overflow-hidden cursor-crosshair border border-border" style={{ aspectRatio: '4/3' }} onMouseMove={handleCropMove} onTouchMove={handleCropMove}>
-              <img src={coverSrc} alt="" className="w-full h-full object-cover" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} draggable={false} />
-              <div className="absolute inset-0 border-2 border-accent/50 rounded-lg pointer-events-none" />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button onClick={() => setCropMode(false)} className="flex-1 h-9 rounded-md border border-border text-[11px] text-text-muted">Отмена</button>
-              <button onClick={applyCrop} className="flex-1 h-9 rounded-md bg-accent text-bg text-[11px] font-medium">Применить</button>
-            </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-white/30">Комментарий</label>
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Описание (необязательно)"
+              rows={2}
+              className="w-full resize-none rounded-lg border border-white/8 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/15 outline-none transition focus:border-cyan-500/30"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Files */}
-      <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 hover-tilt">
-        <label className="block text-[11px] font-medium text-text-secondary mb-2">Файлы</label>
-        {files.length === 0 ? (
-          <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileRef.current?.click()} className={`h-24 rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${dragOver ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/40'}`}>
-            <input ref={fileRef} type="file" multiple onChange={e => e.target.files && addFiles(e.target.files)} className="hidden" />
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted/40 mb-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p className="text-[11px] text-text-muted">Перетащите файлы или нажмите</p>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {files.map((f, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-surface/50 border border-border">
-                <span className="text-base">{fileIcon(f.type)}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-medium text-text truncate">{f.name}</div>
-                  <div className="text-[9px] text-text-muted">{formatBytes(f.size)}</div>
+          <div>
+            <label className="mb-1.5 block text-xs text-white/30">Обложка 4:3 <span className="text-white/15">(необязательно)</span></label>
+            <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
+            {coverData ? (
+              <div className="relative overflow-hidden rounded-lg">
+                <img src={coverData} alt="" className="aspect-[4/3] w-full object-cover" />
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    onClick={() => coverInputRef.current?.click()}
+                    className="rounded-lg bg-black/50 p-1.5 text-white/60 transition active:scale-90 hover:bg-black/70 hover:text-white"
+                  >
+                    <ImagePlus className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setCoverData('')}
+                    className="rounded-lg bg-black/50 p-1.5 text-white/60 transition active:scale-90 hover:bg-red-500/50 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-                <button onClick={() => removeFile(i)} className="w-5 h-5 rounded flex items-center justify-center text-text-muted hover:text-danger">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
               </div>
-            ))}
-            <button onClick={() => fileRef.current?.click()} className="w-full h-8 rounded-md border border-dashed border-border hover:border-accent/40 text-[10px] text-text-muted hover:text-text transition-colors">
-              + Добавить ещё
-            </button>
-            <input ref={fileRef} type="file" multiple onChange={e => e.target.files && addFiles(e.target.files)} className="hidden" />
+            ) : (
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                className="btn-glow flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 bg-white/3 py-4 text-xs text-white/25 transition hover:border-violet-500/30 hover:bg-violet-500/5 hover:text-violet-400/60"
+              >
+                <ImagePlus className="h-4 w-4" />
+                Добавить обложку
+              </button>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Cover */}
-      <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 hover-tilt">
-        <label className="block text-[11px] font-medium text-text-secondary mb-2">Обложка</label>
-        {cover ? (
-          <div className="relative rounded-lg overflow-hidden border border-border" style={{ aspectRatio: '4/3' }}>
-            <img src={cover} alt="" className="w-full h-full object-cover select-none" draggable={false} style={{ pointerEvents: 'none' }} />
-            <button onClick={() => setCover('')} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white/80 hover:text-white">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        ) : (
-          <button onClick={() => coverFileRef.current?.click()} className="w-full h-14 rounded-lg border-2 border-dashed border-border hover:border-accent/40 flex items-center justify-center gap-2 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted/50"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span className="text-[10px] text-text-muted">Добавить обложку</span>
-          </button>
-        )}
-        <input ref={coverFileRef} type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleCoverSelect(e.target.files[0])} className="hidden" />
-      </div>
-
-      {/* Mode & Settings */}
-      <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3 hover-tilt">
-        <label className="block text-[11px] font-medium text-text-secondary">Режим и настройки</label>
-
-        <div>
-          <div className="text-[10px] text-text-muted mb-1.5">Режим раздачи</div>
-          <div className="flex rounded-md border border-border overflow-hidden">
-            <button onClick={() => setMode('download')} className={`flex-1 h-9 text-[11px] font-medium transition-colors ${mode === 'download' ? 'bg-accent/15 text-accent' : 'text-text-muted hover:text-text'}`}>Загрузка</button>
-            <button onClick={() => setMode('view')} className={`flex-1 h-9 text-[11px] font-medium transition-colors ${mode === 'view' ? 'bg-accent/15 text-accent' : 'text-text-muted hover:text-text'}`}>Только просмотр</button>
-          </div>
-        </div>
-
-        {mode === 'view' && (
-          <div className="flex items-center justify-between py-0.5">
-            <span className="text-[11px] text-text-secondary">Разрешить скачивание</span>
-            <button onClick={() => setAllowDl(!allowDl)} className={`w-8 h-4 rounded-full relative transition-colors ${allowDl ? 'bg-accent' : 'bg-border'}`}>
-              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${allowDl ? 'left-[18px]' : 'left-0.5'}`} />
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-text-secondary w-20">Время жизни</span>
-            <button onClick={() => setLtOn(!ltOn)} className={`w-8 h-4 rounded-full relative transition-colors ${ltOn ? 'bg-accent' : 'bg-border'}`}>
-              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${ltOn ? 'left-[18px]' : 'left-0.5'}`} />
-            </button>
-          </div>
-          <div className="flex items-center gap-1.5 flex-1">
-            <input type="text" inputMode="numeric" value={ltH === 0 ? '' : ltH.toString()} onChange={e => setLtH(parseInt(e.target.value.replace(/\D/g, '')) || 0)} disabled={!ltOn} placeholder="0" className={(ltOn ? ic : dc) + ' w-14 text-center text-[12px]'} />
-            <span className="text-[10px] text-text-muted">ч</span>
-            <input type="text" inputMode="numeric" value={ltM === 0 ? '' : ltM.toString()} onChange={e => setLtM(Math.min(59, parseInt(e.target.value.replace(/\D/g, '')) || 0))} disabled={!ltOn} placeholder="0" className={(ltOn ? ic : dc) + ' w-14 text-center text-[12px]'} />
-            <span className="text-[10px] text-text-muted">м</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between py-0.5">
-          <span className="text-[11px] text-text-secondary">Скрыть расширение</span>
-          <button onClick={() => setHideExt(!hideExt)} className={`w-8 h-4 rounded-full relative transition-colors ${hideExt ? 'bg-accent' : 'bg-border'}`}>
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${hideExt ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
-
-        {!globalPw && (
-          <div className="pt-1 border-t border-border/50">
-            <div className="flex items-center justify-between py-0.5 mb-2">
-              <span className="text-[11px] text-text-secondary">Пароль</span>
-              <button onClick={() => setPwOn(!pwOn)} className={`w-8 h-4 rounded-full relative transition-colors ${pwOn ? 'bg-accent' : 'bg-border'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${pwOn ? 'left-[18px]' : 'left-0.5'}`} />
+          <div>
+            <label className="mb-2 block text-xs text-white/30">Режим</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleModeChange('view')}
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-medium transition ${mode === 'view' ? 'bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/30' : 'bg-white/3 text-white/30 hover:bg-white/5'}`}
+              >
+                <Eye className="mx-auto mb-1 h-4 w-4" />
+                Просмотр
+                <span className="mt-1 block text-[9px] opacity-50">Только медиа</span>
+              </button>
+              <button
+                onClick={() => handleModeChange('download')}
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-medium transition ${mode === 'download' ? 'bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30' : 'bg-white/3 text-white/30 hover:bg-white/5'}`}
+              >
+                <Download className="mx-auto mb-1 h-4 w-4" />
+                Загрузка
+                <span className="mt-1 block text-[9px] opacity-50">Любые файлы</span>
               </button>
             </div>
-            <input type="text" value={pw} onChange={e => setPw(e.target.value)} disabled={!pwOn} placeholder="Пароль" className={pwOn ? ic : dc} />
           </div>
-        )}
-      </div>
 
-      {/* Title & Comment */}
-      <div className="rounded-xl border border-accent/15 bg-surface/30 backdrop-blur-sm p-4 space-y-3 hover-tilt">
-        <div>
-          <label className="block text-[11px] font-medium text-text-secondary mb-1">Заголовок</label>
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Необязательно" className={ic} />
+          <div>
+            <label className="mb-2 block text-xs text-white/30">
+              Файлы {mode === 'view' && <span className="text-white/15">(только видео, аудио, изображения)</span>}
+            </label>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept={mode === 'view' ? 'video/*,audio/*,image/*' : '*'}
+              onChange={addFiles}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="btn-glow flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 bg-white/3 py-5 text-xs text-white/30 transition hover:border-cyan-500/30 hover:bg-cyan-500/5 hover:text-cyan-400/60"
+            >
+              <Plus className="h-4 w-4" />
+              Добавить файлы
+            </button>
+            <AnimatePresence>
+              {files.length > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-1.5">
+                  {files.map((f, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      className="flex items-center gap-2 rounded-lg bg-white/3 px-3 py-2"
+                    >
+                      {getFileIcon(f.type)}
+                      <span className="flex-1 truncate text-xs text-white/50">{f.name}</span>
+                      <span className="text-[10px] text-white/20">{formatBytes(f.size)}</span>
+                      <button onClick={() => removeFile(i)} className="text-white/15 hover:text-red-400">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <p className="mt-2 text-[10px] text-white/15">
+              {mode === 'view' ? 'Только заголовок и комментарий без файла — тоже возможно' : 'Без ограничений на размер и тип файлов'}
+            </p>
+          </div>
         </div>
-        <div>
-          <label className="block text-[11px] font-medium text-text-secondary mb-1">Комментарий</label>
-          <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Необязательно" rows={2} className={ic + ' resize-none h-auto py-2'} />
-        </div>
-      </div>
+      </motion.div>
 
-      {/* Actions */}
-      <div className="flex gap-2">
-        <button onClick={preview} disabled={!files.length} className="flex-1 h-10 rounded-lg border border-border text-[12px] font-medium text-text-secondary hover:text-text disabled:opacity-30 transition-colors">Предпросмотр</button>
-        <button onClick={publish} disabled={!files.length || creating} className="flex-1 h-10 rounded-lg bg-accent/90 text-bg text-[12px] font-semibold hover:bg-accent active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all shadow-[0_0_15px_#22c55e15]">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="glass-card rounded-xl p-5"
+      >
+        <h3 className="mb-4 text-sm font-semibold text-white">Параметры страницы</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 flex items-center gap-1 text-xs text-white/30">
+                <Clock className="h-3 w-3" /> Время жизни
+              </label>
+              <input
+                type="number"
+                value={lifetime}
+                onChange={e => setLifetime(Math.max(1, Number(e.target.value)))}
+                min={1}
+                className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-white/30">Единица</label>
+              <select
+                value={lifetimeUnit}
+                onChange={e => setLifetimeUnit(e.target.value as 'hours' | 'minutes')}
+                className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
+              >
+                <option value="hours">Часы</option>
+                <option value="minutes">Минуты</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-white/3 px-4 py-3">
+            <span className="text-xs text-white/50">Скрыть таймер на странице</span>
+            <Toggle checked={hideTimer} onChange={setHideTimer} />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-white/3 px-4 py-3">
+            <span className="text-xs text-white/50">Скрыть расширения файлов</span>
+            <Toggle checked={hideExtensions} onChange={setHideExtensions} />
+          </div>
+
+          <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${mode === 'download' ? 'bg-white/3 opacity-40' : 'bg-white/3'}`}>
+            <span className="text-xs text-white/50">Разрешить скачивание</span>
+            <Toggle checked={mode === 'download' ? true : allowDownload} onChange={setAllowDownload} disabled={mode === 'download'} />
+          </div>
+
+          <div className="rounded-lg bg-white/3 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <Lock className="h-3 w-3" /> Пароль для доступа
+              </div>
+              <Toggle checked={usePassword} onChange={setUsePassword} />
+            </div>
+            {usePassword && (
+              <input
+                type="text"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Введите пароль"
+                className="mt-2 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
+              />
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex gap-3"
+      >
+        <button
+          onClick={() => setShowDemo(true)}
+          className="btn-glow flex-1 rounded-xl border border-white/8 bg-white/3 py-3 text-xs font-medium text-white/40 transition hover:bg-white/5 hover:text-white/60"
+        >
+          Демо
+        </button>
+        <button
+          onClick={publish}
+          disabled={!canPublish}
+          className="btn-glow flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 py-3 text-xs font-semibold text-white shadow-lg shadow-cyan-500/15 transition hover:shadow-cyan-500/25 disabled:opacity-40"
+        >
           Опубликовать
         </button>
-      </div>
+      </motion.div>
+
+      {showCropper && coverFile && (
+        <CoverCropper
+          imageFile={coverFile}
+          onCrop={handleCoverCropped}
+          onCancel={() => { setShowCropper(false); setCoverFile(null); }}
+        />
+      )}
+
+      {showDemo && (
+        <DemoModal
+          share={demoShare}
+          settings={settings}
+          onClose={() => setShowDemo(false)}
+        />
+      )}
+
+      {uploading && (
+        <UploadModal
+          progress={uploadProgress}
+          onCancel={cancelUpload}
+        />
+      )}
+
+      {published && (
+        <SuccessModal
+          type="share"
+          title={published.title}
+          link={published.link}
+          onClose={closeSuccess}
+        />
+      )}
     </div>
   );
-};
+}

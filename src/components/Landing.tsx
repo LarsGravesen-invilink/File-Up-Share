@@ -1,134 +1,142 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Upload, Shield, Zap, ArrowRight } from 'lucide-react';
 
 interface Props {
-  onLogin: () => void;
   name: string;
+  onEnter: () => void;
 }
 
-const features = [
-  'Раздача файлов',
-  'Приём файлов',
-  'Защита паролем',
-  'Лимиты скачиваний',
-  'Настраиваемый дизайн',
-  'Telegram уведомления',
-  'Статистика',
-  'Управление доступом',
-];
+export function Landing({ name, onEnter }: Props) {
+  const [time, setTime] = useState(new Date().toLocaleTimeString('ru-RU'));
 
-export const Landing: React.FC<Props> = ({ onLogin, name }) => {
-  const [ready, setReady] = useState(false);
-  useEffect(() => { requestAnimationFrame(() => setReady(true)); }, []);
+  useEffect(() => {
+    const i = setInterval(() => setTime(new Date().toLocaleTimeString('ru-RU')), 1000);
+    return () => clearInterval(i);
+  }, []);
 
-  const t = (delay: number): React.CSSProperties => ({
-    opacity: ready ? 1 : 0,
-    transform: ready ? 'translateY(0)' : 'translateY(12px)',
-    transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s`,
-  });
+  const marqueeText = `${name} · Панель управления · Раздачи · Загрузки · `;
+  const marqueeBottom = 'Безопасность · Шифрование · Мониторинг · Контроль · ';
 
   return (
-    <div className="h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden overflow-y-auto">
-      {/* Radial glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-radial pointer-events-none" />
+    <div className="relative flex h-screen flex-col overflow-hidden bg-[#0a0e1a]">
+      <div className="noise-bg" />
 
-      {/* ─── Nav — only login button ─── */}
-      <nav className="relative z-10 flex items-center justify-end px-5 sm:px-8 h-[56px]" style={t(0.05)}>
-        <button
-          onClick={onLogin}
-          className="h-8 px-4 rounded-md bg-surface-2/80 border border-border text-[12px] font-medium text-text-secondary hover:text-accent hover:border-accent/30 active:scale-[0.97] transition-all duration-150 backdrop-blur-sm"
+      <div className="absolute inset-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-500/10 blur-[120px] animate-pulse-glow" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-violet-500/10 blur-[120px] animate-pulse-glow" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full bg-blue-500/5 blur-[80px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <div className="relative z-10 flex-shrink-0 overflow-hidden border-b border-white/3">
+        <div className="marquee-track py-2 text-[11px] tracking-[0.3em] text-white/10 uppercase">
+          <span>{Array(10).fill(marqueeText).join('')}</span>
+          <span>{Array(10).fill(marqueeText).join('')}</span>
+        </div>
+      </div>
+
+      <div className="relative z-10 flex flex-1 items-center justify-center px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center"
         >
-          Войти в панель
-        </button>
-      </nav>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-violet-600 shadow-2xl shadow-cyan-500/25 sm:mb-8 sm:h-20 sm:w-20"
+          >
+            <Upload className="h-7 w-7 text-white sm:h-9 sm:w-9" strokeWidth={2} />
+          </motion.div>
 
-      {/* ─── Hero ─── */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8">
-        <div className="w-full max-w-2xl text-center">
-          {/* Main title with glow */}
-          <h1
-            style={t(0.2)}
-            className="text-[clamp(2.5rem,8vw,4.5rem)] font-bold tracking-tight leading-[1.05] mb-6 animate-glow-text text-text"
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-3 bg-gradient-to-r from-white via-cyan-200 to-violet-200 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl"
           >
             {name}
-          </h1>
+          </motion.h1>
 
-          <p style={t(0.35)} className="text-[15px] sm:text-base text-text-secondary leading-relaxed mb-10 max-w-md mx-auto">
-            Панель управления раздачами и загрузками файлов на вашем сервере
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="mb-2 text-[10px] tracking-widest text-white/30 uppercase sm:text-sm"
+          >
+            v 1.0.1
+          </motion.p>
 
-          {/* Placeholder for future promo button */}
-          <div style={t(0.45)} className="mb-12">
-            {/* Future: Link to project page */}
-          </div>
-        </div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mx-auto mb-8 max-w-md text-xs text-white/40 sm:mb-10 sm:text-base"
+          >
+            Панель управления раздачами и загрузками файлов на вашем Linux VPS
+          </motion.p>
 
-        {/* ─── Marquee / Running text ─── */}
-        <div style={t(0.55)} className="w-full max-w-4xl overflow-hidden">
-          <div className="relative">
-            {/* Fade edges */}
-            <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-bg to-transparent z-10 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-bg to-transparent z-10 pointer-events-none" />
-            
-            {/* Marquee track */}
-            <div className="flex animate-marquee">
-              {[...features, ...features].map((f, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0 mx-3 px-4 py-2 rounded-lg border border-accent/15 bg-accent/5 backdrop-blur-sm"
-                >
-                  <span className="text-[12px] sm:text-[13px] text-accent/80 font-medium whitespace-nowrap">{f}</span>
-                </div>
-              ))}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="mb-10 flex items-center justify-center gap-6 text-white/25 sm:mb-14 sm:gap-8"
+          >
+            <div className="flex items-center gap-1.5 text-[10px] sm:gap-2 sm:text-xs">
+              <Shield className="h-3.5 w-3.5 text-cyan-400/50 sm:h-4 sm:w-4" />
+              <span>Шифрование</span>
             </div>
-          </div>
-        </div>
-
-        {/* ─── Feature cards ─── */}
-        <div className="w-full max-w-2xl mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3" style={t(0.7)}>
-          {([
-            {
-              icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>,
-              title: 'Раздача файлов',
-              desc: 'Страницы для скачивания с контролем доступа',
-            },
-            {
-              icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-              title: 'Приём файлов',
-              desc: 'Страницы загрузки от пользователей',
-            },
-            {
-              icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-              title: 'Безопасность',
-              desc: 'Пароли, лимиты, полный контроль на VPS',
-            },
-          ]).map((f, i) => (
-            <div key={i} className="p-4 rounded-xl glow-border bg-surface/40 backdrop-blur-sm hover:border-accent/25 hover:bg-surface/60 transition-all duration-300 group">
-              <div className="text-text-muted mb-2.5 group-hover:text-accent transition-colors duration-300">{f.icon}</div>
-              <div className="text-[13px] font-semibold text-text mb-1">{f.title}</div>
-              <div className="text-[12px] text-text-muted leading-relaxed">{f.desc}</div>
+            <div className="flex items-center gap-1.5 text-[10px] sm:gap-2 sm:text-xs">
+              <Zap className="h-3.5 w-3.5 text-violet-400/50 sm:h-4 sm:w-4" />
+              <span>Быстро</span>
             </div>
-          ))}
+            <div className="flex items-center gap-1.5 text-[10px] sm:gap-2 sm:text-xs">
+              <Upload className="h-3.5 w-3.5 text-blue-400/50 sm:h-4 sm:w-4" />
+              <span>Надёжно</span>
+            </div>
+          </motion.div>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.9 }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onEnter}
+            className="btn-glow group relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-2xl shadow-cyan-500/20 transition-shadow hover:shadow-cyan-500/30 sm:px-8 sm:py-3.5"
+          >
+            Войти в панель
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </motion.button>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 1.2 }}
+            className="mt-6 text-[10px] text-white/15 sm:mt-8 sm:text-xs"
+          >
+            {time}
+          </motion.div>
+        </motion.div>
+      </div>
+
+      <div className="relative z-10 flex-shrink-0 overflow-hidden border-t border-white/3">
+        <div className="marquee-track py-2 text-[11px] tracking-[0.3em] text-white/10 uppercase" style={{ animationDirection: 'reverse' }}>
+          <span>{Array(10).fill(marqueeBottom).join('')}</span>
+          <span>{Array(10).fill(marqueeBottom).join('')}</span>
         </div>
-      </main>
+      </div>
 
-      {/* ─── Footer ─── */}
-      <footer className="relative z-10 px-5 sm:px-8 py-4 text-center" style={t(0.85)}>
-        <p className="text-[10px] text-text-muted/30">by invilink | LarsGravesen</p>
-      </footer>
-
-      {/* Marquee animation */}
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 25s linear infinite;
-        }
-        .animate-marquee:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 1.5 }}
+        className="absolute bottom-8 left-0 right-0 z-20 text-center text-[10px] text-white/15 sm:text-[11px]"
+      >
+        by LarsGravesen | invilink
+      </motion.div>
     </div>
   );
-};
+}

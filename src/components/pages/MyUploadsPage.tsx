@@ -1,119 +1,194 @@
-import React, { useState } from 'react';
-import type { UploadPage as UploadPageType } from '../../types';
-import { buildUploadUrl } from '../../types';
-import type { Page } from '../Sidebar';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Download, Copy, Trash2, ExternalLink, Clock, Lock, Share as ShareIcon, Plus, Check } from 'lucide-react';
+import type { Upload } from '../../types';
+import { formatDate, timeLeft } from '../../helpers';
 
 interface Props {
-  uploads: UploadPageType[];
+  uploads: Upload[];
   onRemove: (id: string) => void;
-  onNavigate: (p: Page) => void;
-  onPreview: (item: UploadPageType) => void;
+  onExtend: (id: string, hours: number) => void;
 }
 
-export const MyUploadsPage: React.FC<Props> = ({ uploads, onRemove, onNavigate, onPreview }) => {
-  const [extending, setExtending] = useState<string | null>(null);
+export function MyUploadsPage({ uploads, onRemove, onExtend }: Props) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [extendModal, setExtendModal] = useState<string | null>(null);
+  const [extendHours, setExtendHours] = useState(24);
 
-  const getTimeLeft = (item: UploadPageType) => {
-    if (!item.lifetimeEnabled) return '∞';
-    const totalMs = (item.lifetimeHours * 60 + item.lifetimeMinutes) * 60 * 1000;
-    const remaining = totalMs - (Date.now() - item.createdAt);
-    if (remaining <= 0) return 'Истекло';
-    const h = Math.floor(remaining / 3600000);
-    const m = Math.floor((remaining % 3600000) / 60000);
-    return h > 0 ? `${h}ч ${m}м` : `${m}м`;
+  const copyLink = (upload: Upload) => {
+    navigator.clipboard.writeText(window.location.origin + upload.link);
+    setCopiedId(upload.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const copyText = (text: string) => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); });
+  const shareLink = async (upload: Upload) => {
+    const text = 'Вас просят загрузить файл';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: upload.title, text, url: window.location.origin + upload.link });
+      } catch {}
     } else {
-      const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
+      copyLink(upload);
     }
   };
 
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const handleCopyLink = (id: string) => {
-    const url = buildUploadUrl(id);
-    copyText(url);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
+  const handleExtend = () => {
+    if (extendModal) {
+      onExtend(extendModal, extendHours);
+      setExtendModal(null);
+      setExtendHours(24);
+    }
   };
 
-  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
-
-  const handleShare = (id: string) => {
-    const url = buildUploadUrl(id);
-    navigator.share({ title: 'Вас просят загрузить файл', url }).catch(() => {});
-  };
+  const activeUploads = uploads.filter(u => u.expiresAt > Date.now());
 
   return (
-    <div className="space-y-3 animate-in">
-      {uploads.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-3xl mb-3">📥</div>
-          <p className="text-[13px] text-text-muted mb-1">Нет страниц загрузки</p>
-          <button onClick={() => onNavigate('create-upload')} className="text-[11px] text-accent hover:text-accent-hover transition-colors mt-1">
-            Создать загрузку
-          </button>
-        </div>
+    <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+          <Download className="h-4 w-4 text-blue-400" />
+          Мои загрузки
+          <span className="ml-1 rounded-md bg-white/5 px-2 py-0.5 text-[10px] text-white/25">{activeUploads.length}</span>
+        </h3>
+      </motion.div>
+
+      {activeUploads.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="glass-card flex flex-col items-center justify-center rounded-xl py-16 text-center"
+        >
+          <Download className="mb-3 h-8 w-8 text-white/10" />
+          <p className="text-sm text-white/20">Нет активных загрузок</p>
+          <p className="mt-1 text-xs text-white/10">Создайте первую страницу загрузки</p>
+        </motion.div>
       ) : (
-        uploads.map(item => (
-          <div key={item.id} className="rounded-xl border border-accent/10 bg-surface/30 backdrop-blur-sm overflow-hidden hover-tilt">
-            <div className="p-4">
-              <div className="text-[13px] font-medium text-text truncate mb-1">
-                {item.title || 'Загрузка #' + item.id.slice(0, 6)}
-              </div>
-              <div className="text-[10px] text-text-muted mb-3">
-                {item.currentUploads}/{item.maxUploads} загрузок · {item.maxFiles} файл(а) за раз · {getTimeLeft(item)}
-                {item.password && <span className="ml-1">🔒</span>}
-              </div>
-
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button onClick={() => handleCopyLink(item.id)} className="h-7 px-2.5 rounded-md border border-border text-[10px] text-text-muted hover:text-text hover:border-border-light transition-colors flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Ссылка
-                </button>
-                {canShare && (
-                  <button onClick={() => handleShare(item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 active:scale-[0.97] transition-all flex items-center gap-1">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                    Отправить
-                  </button>
-                )}
-                <button onClick={() => setExtending(extending === item.id ? null : item.id)} className="h-7 px-2.5 rounded-md border border-border text-[10px] text-text-muted hover:text-text hover:border-border-light transition-colors flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  Продлить
-                </button>
-                <button onClick={() => onPreview(item)} className="h-7 px-2.5 rounded-md border border-border text-[10px] text-text-muted hover:text-text hover:border-border-light transition-colors flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  Открыть
-                </button>
-                <button onClick={() => onRemove(item.id)} className="h-7 w-7 rounded-md border border-border flex items-center justify-center text-text-muted hover:text-danger hover:border-danger/25 transition-colors ml-auto">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                </button>
-              </div>
-
-              {extending === item.id && (
-                <div className="mt-3 p-3 rounded-lg bg-bg/50 border border-accent/15 animate-in">
-                  <div className="text-[11px] text-text-secondary mb-2">Продлить на</div>
+        <AnimatePresence>
+          {activeUploads.map((upload, i) => (
+            <motion.div
+              key={upload.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ delay: i * 0.05 }}
+              className="glass-card group rounded-xl p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <input type="text" inputMode="numeric" placeholder="0" className="w-14 h-8 px-2 rounded-md bg-surface/60 border border-border text-[12px] text-text text-center outline-none focus:border-accent/50 transition-all" onChange={e => (e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4))} />
-                    <span className="text-[10px] text-text-muted">ч</span>
-                    <input type="text" inputMode="numeric" placeholder="0" className="w-14 h-8 px-2 rounded-md bg-surface/60 border border-border text-[12px] text-text text-center outline-none focus:border-accent/50 transition-all" onChange={e => (e.target.value = e.target.value.replace(/\D/g, '').slice(0, 2))} />
-                    <span className="text-[10px] text-text-muted">м</span>
-                    <button className="h-8 px-3 rounded-md bg-accent text-bg text-[11px] font-medium hover:bg-accent/90 transition-colors ml-auto" onClick={() => setExtending(null)}>
-                      ОК
-                    </button>
-                    <button className="h-8 px-2 rounded-md border border-border text-[11px] text-text-muted hover:text-text transition-colors" onClick={() => setExtending(null)}>
-                      ×
-                    </button>
+                    <h4 className="truncate text-sm font-medium text-white">{upload.title}</h4>
+                    {upload.password && <Lock className="h-3 w-3 flex-shrink-0 text-yellow-400/50" />}
+                  </div>
+                  {upload.comment && (
+                    <p className="mt-0.5 truncate text-xs text-white/25">{upload.comment}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-white/20">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {timeLeft(upload.expiresAt)}
+                    </span>
+                    <span>{formatDate(upload.createdAt)}</span>
+                    <span className="rounded bg-white/5 px-1.5 py-0.5">
+                      {upload.usedUploads} принято
+                    </span>
+                    <span className="rounded bg-white/5 px-1.5 py-0.5">
+                      до {upload.maxFiles} файлов
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        ))
+
+                <div className="flex flex-shrink-0 gap-1">
+                  <button
+                    onClick={() => copyLink(upload)}
+                    className={`rounded-lg p-2 transition active:scale-90 ${copiedId === upload.id ? 'bg-emerald-500/15 text-emerald-400' : 'text-white/20 hover:bg-white/5 hover:text-cyan-400'}`}
+                    title="Копировать ссылку"
+                  >
+                    {copiedId === upload.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => shareLink(upload)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-blue-400"
+                    title="Поделиться"
+                  >
+                    <ShareIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setExtendModal(upload.id)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-emerald-400"
+                    title="Продлить"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  <a
+                    href={upload.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
+                    title="Открыть"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    onClick={() => onRemove(upload.id)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-red-500/10 hover:text-red-400"
+                    title="Удалить"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       )}
+
+      <AnimatePresence>
+        {extendModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="glass w-full max-w-sm rounded-2xl p-6"
+            >
+              <h3 className="mb-4 text-sm font-semibold text-white">Продлить загрузку</h3>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs text-white/30">Добавить часов</label>
+                <input
+                  type="number"
+                  value={extendHours}
+                  onChange={e => setExtendHours(Math.max(1, Number(e.target.value)))}
+                  min={1}
+                  className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setExtendModal(null)}
+                  className="flex-1 rounded-lg border border-white/10 py-2 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleExtend}
+                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 py-2 text-xs font-medium text-white transition active:scale-95"
+                >
+                  Продлить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
+}

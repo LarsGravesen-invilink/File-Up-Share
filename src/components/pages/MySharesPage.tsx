@@ -1,140 +1,207 @@
-import React, { useState } from 'react';
-import type { ShareItem } from '../../types';
-import { formatBytes, buildShareUrl } from '../../types';
-import type { Page } from '../Sidebar';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FolderOpen, Copy, Trash2, ExternalLink, Clock, Lock, FileIcon, Share as ShareIcon, Plus, Check, Eye, Download } from 'lucide-react';
+import type { Share } from '../../types';
+import { formatDate, timeLeft, formatBytes } from '../../helpers';
 
 interface Props {
-  shares: ShareItem[];
+  shares: Share[];
   onRemove: (id: string) => void;
-  onNavigate: (p: Page) => void;
-  onPreview: (item: ShareItem) => void;
+  onExtend: (id: string, hours: number) => void;
 }
 
-export const MySharesPage: React.FC<Props> = ({ shares, onRemove, onNavigate, onPreview }) => {
-  const [extending, setExtending] = useState<string | null>(null);
+export function MySharesPage({ shares, onRemove, onExtend }: Props) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [extendModal, setExtendModal] = useState<string | null>(null);
+  const [extendHours, setExtendHours] = useState(24);
 
-  const getTimeLeft = (item: ShareItem) => {
-    if (!item.lifetimeEnabled) return '∞';
-    const totalMs = (item.lifetimeHours * 60 + item.lifetimeMinutes) * 60 * 1000;
-    const elapsed = Date.now() - item.createdAt;
-    const remaining = totalMs - elapsed;
-    if (remaining <= 0) return 'Истекло';
-    const h = Math.floor(remaining / 3600000);
-    const m = Math.floor((remaining % 3600000) / 60000);
-    return h > 0 ? `${h}ч ${m}м` : `${m}м`;
+  const copyLink = (share: Share) => {
+    navigator.clipboard.writeText(window.location.origin + share.link);
+    setCopiedId(share.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const copyText = (text: string) => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  const shareLink = async (share: Share) => {
+    const text = 'С Вами поделились файлом';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: share.title, text, url: window.location.origin + share.link });
+      } catch {}
     } else {
-      fallbackCopy(text);
+      copyLink(share);
     }
   };
 
-  const fallbackCopy = (text: string) => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
+  const handleExtend = () => {
+    if (extendModal) {
+      onExtend(extendModal, extendHours);
+      setExtendModal(null);
+      setExtendHours(24);
+    }
   };
 
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const handleCopyLink = (id: string) => {
-    const url = buildShareUrl(id);
-    copyText(url);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
-
-  const handleShare = (id: string) => {
-    const url = buildShareUrl(id);
-    navigator.share({ title: 'С Вами поделились файлом', url }).catch(() => {});
-  };
+  const activeShares = shares.filter(s => s.expiresAt > Date.now());
 
   return (
-    <div className="space-y-3 animate-in">
-      {shares.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-3xl mb-3">📂</div>
-          <p className="text-[13px] text-text-muted mb-1">Нет активных раздач</p>
-          <button onClick={() => onNavigate('create-share')} className="text-[11px] text-accent hover:text-accent-hover transition-colors mt-1">
-            Создать раздачу
-          </button>
-        </div>
+    <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+          <FolderOpen className="h-4 w-4 text-emerald-400" />
+          Мои раздачи
+          <span className="ml-1 rounded-md bg-white/5 px-2 py-0.5 text-[10px] text-white/25">{activeShares.length}</span>
+        </h3>
+      </motion.div>
+
+      {activeShares.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="glass-card flex flex-col items-center justify-center rounded-xl py-16 text-center"
+        >
+          <FolderOpen className="mb-3 h-8 w-8 text-white/10" />
+          <p className="text-sm text-white/20">Нет активных раздач</p>
+          <p className="mt-1 text-xs text-white/10">Создайте первую раздачу</p>
+        </motion.div>
       ) : (
-        shares.map(item => (
-          <div key={item.id} className="rounded-xl border border-accent/10 bg-surface/30 backdrop-blur-sm overflow-hidden hover-tilt">
-            <div className="p-4">
-              <div className="text-[13px] font-medium text-text truncate mb-1">
-                {item.title || (item.hideExtension ? item.fileName.replace(/\.[^/.]+$/, '') : item.fileName)}
-              </div>
-              <div className="text-[10px] text-text-muted mb-3">
-                {formatBytes(item.fileSize)} · {getTimeLeft(item)}
-                {item.password && <span className="ml-1">🔒</span>}
-              </div>
+        <AnimatePresence>
+          {activeShares.map((share, i) => (
+            <motion.div
+              key={share.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ delay: i * 0.05 }}
+              className="glass-card group rounded-xl p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="truncate text-sm font-medium text-white">{share.title}</h4>
+                    {share.password && <Lock className="h-3 w-3 flex-shrink-0 text-yellow-400/50" />}
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${share.mode === 'view' ? 'bg-violet-500/15 text-violet-400' : 'bg-cyan-500/15 text-cyan-400'}`}>
+                      {share.mode === 'view' ? <Eye className="inline h-2.5 w-2.5" /> : <Download className="inline h-2.5 w-2.5" />}
+                    </span>
+                  </div>
+                  {share.comment && (
+                    <p className="mt-0.5 truncate text-xs text-white/25">{share.comment}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-white/20">
+                    <span className="flex items-center gap-1">
+                      <FileIcon className="h-3 w-3" />
+                      {share.files.length} файл{share.files.length !== 1 ? 'ов' : ''}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {timeLeft(share.expiresAt)}
+                    </span>
+                    <span>{formatDate(share.createdAt)}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {share.files.slice(0, 3).map((f, fi) => (
+                      <span key={fi} className="rounded bg-white/3 px-2 py-0.5 text-[10px] text-white/20">
+                        {f.name} · {formatBytes(f.size)}
+                      </span>
+                    ))}
+                    {share.files.length > 3 && (
+                      <span className="rounded bg-white/3 px-2 py-0.5 text-[10px] text-white/15">
+                        +{share.files.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button onClick={() => handleCopyLink(item.id)} className={`h-6 px-2 rounded text-[9px] font-medium transition-colors flex items-center gap-1 ${copied === item.id ? 'bg-accent/30 text-accent' : 'bg-accent/10 text-accent hover:bg-accent/20'}`}>
-                  {copied === item.id ? '✓' : <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
-                  {copied === item.id ? 'Скопировано' : 'Ссылка'}
-                </button>
-                {canShare && (
-                  <button onClick={() => handleShare(item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 active:scale-[0.97] transition-all flex items-center gap-1">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                    Отправить
+                <div className="flex flex-shrink-0 gap-1">
+                  <button
+                    onClick={() => copyLink(share)}
+                    className={`rounded-lg p-2 transition active:scale-90 ${copiedId === share.id ? 'bg-emerald-500/15 text-emerald-400' : 'text-white/20 hover:bg-white/5 hover:text-cyan-400'}`}
+                    title="Копировать ссылку"
+                  >
+                    {copiedId === share.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
-                )}
-                <button onClick={() => setExtending(extending === item.id ? null : item.id)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  +Время
+                  <button
+                    onClick={() => shareLink(share)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-blue-400"
+                    title="Поделиться"
+                  >
+                    <ShareIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setExtendModal(share.id)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-emerald-400"
+                    title="Продлить"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  <a
+                    href={share.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
+                    title="Открыть"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    onClick={() => onRemove(share.id)}
+                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-red-500/10 hover:text-red-400"
+                    title="Удалить"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
+
+      <AnimatePresence>
+        {extendModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="glass w-full max-w-sm rounded-2xl p-6"
+            >
+              <h3 className="mb-4 text-sm font-semibold text-white">Продлить раздачу</h3>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs text-white/30">Добавить часов</label>
+                <input
+                  type="number"
+                  value={extendHours}
+                  onChange={e => setExtendHours(Math.max(1, Number(e.target.value)))}
+                  min={1}
+                  className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setExtendModal(null)}
+                  className="flex-1 rounded-lg border border-white/10 py-2 text-xs text-white/40 hover:bg-white/5"
+                >
+                  Отмена
                 </button>
-                <button onClick={() => onPreview(item)} className="h-6 px-2 rounded bg-accent/10 text-[9px] text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  Вид
-                </button>
-                <button onClick={() => onRemove(item.id)} className="h-6 w-6 rounded bg-danger/10 flex items-center justify-center text-danger hover:bg-danger/20 transition-colors ml-auto">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                <button
+                  onClick={handleExtend}
+                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 py-2 text-xs font-medium text-white"
+                >
+                  Продлить
                 </button>
               </div>
-
-              {extending === item.id && (
-                <ExtendModal onClose={() => setExtending(null)} />
-              )}
-            </div>
-          </div>
-        ))
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
-
-const ExtendModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [h, setH] = useState('');
-  const [m, setM] = useState('');
-
-  return (
-    <div className="mt-3 p-3 rounded-lg bg-bg/50 border border-accent/15 animate-in">
-      <div className="text-[11px] text-text-secondary mb-2">Продлить на</div>
-      <div className="flex items-center gap-2">
-        <input type="text" inputMode="numeric" value={h} onChange={e => setH(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="0" className="w-14 h-8 px-2 rounded-md bg-surface/60 border border-border text-[12px] text-text text-center outline-none focus:border-accent/50 transition-all" />
-        <span className="text-[10px] text-text-muted">ч</span>
-        <input type="text" inputMode="numeric" value={m} onChange={e => setM(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="0" className="w-14 h-8 px-2 rounded-md bg-surface/60 border border-border text-[12px] text-text text-center outline-none focus:border-accent/50 transition-all" />
-        <span className="text-[10px] text-text-muted">м</span>
-        <button className="h-8 px-3 rounded-md bg-accent text-bg text-[11px] font-medium hover:bg-accent/90 transition-colors ml-auto" onClick={onClose}>
-          ОК
-        </button>
-        <button className="h-8 px-2 rounded-md border border-border text-[11px] text-text-muted hover:text-text transition-colors" onClick={onClose}>
-          ×
-        </button>
-      </div>
-    </div>
-  );
-};
+}

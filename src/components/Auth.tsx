@@ -1,170 +1,185 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Eye, EyeOff, Lock, User, ArrowLeft, Loader2, UserPlus } from 'lucide-react';
 
 interface Props {
   firstRun: boolean;
-  onRegister: (u: string, p: string) => any;
-  onLogin: (u: string, p: string) => any;
-  name: string;
-  logo: string;
+  onLogin: (user: string, pass: string) => Promise<boolean>;
+  onRegister: (user: string, pass: string) => Promise<boolean>;
+  onBack: () => void;
 }
 
-export const Auth: React.FC<Props> = ({ firstRun, onRegister, onLogin, name, logo }) => {
+export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [err, setErr] = useState('');
-  const [locked, setLocked] = useState(false);
-  const [sec, setSec] = useState(0);
-  const [shake, setShake] = useState(false);
-  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => { requestAnimationFrame(() => setReady(true)); }, []);
-
-  useEffect(() => {
-    if (!locked || sec <= 0) return;
-    const t = setInterval(() => setSec(s => {
-      if (s <= 1) { setLocked(false); return 0; }
-      return s - 1;
-    }), 1000);
-    return () => clearInterval(t);
-  }, [locked, sec]);
-
-  const doShake = () => { setShake(true); setTimeout(() => setShake(false), 450); };
-
-  const submit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErr('');
-
-    if (!user.trim()) { setErr('Введите логин'); doShake(); return; }
-    if (!pass.trim()) { setErr('Введите пароль'); doShake(); return; }
-    if (firstRun && pass.length < 6) { setErr('Пароль минимум 6 символов'); doShake(); return; }
+    if (!user.trim() || !pass.trim()) {
+      setError('Заполните все поля');
+      return;
+    }
+    if (firstRun && user.trim().length < 3) {
+      setError('Логин минимум 3 символа');
+      return;
+    }
+    if (firstRun && pass.trim().length < 4) {
+      setError('Пароль минимум 4 символа');
+      return;
+    }
 
     setLoading(true);
+    setError('');
 
-    if (firstRun) {
-      const reg = await onRegister(user, pass);
-      if (reg && !reg.ok && reg.error) { setErr(reg.error); doShake(); }
-    } else {
-      if (locked) { setLoading(false); return; }
-      const r = await onLogin(user, pass);
-      if (!r.ok) {
-        if (r.locked) { setLocked(true); setSec(r.sec || 300); setErr('Слишком много попыток'); }
-        else setErr(r.error || 'Неверный логин или пароль');
-        doShake();
+    try {
+      let success: boolean;
+      if (firstRun) {
+        success = await onRegister(user.trim(), pass);
+      } else {
+        success = await onLogin(user.trim(), pass);
       }
+
+      if (!success) {
+        setError(firstRun ? 'Ошибка создания аккаунта' : 'Неверный логин или пароль');
+      }
+    } catch {
+      setError('Ошибка соединения с сервером');
     }
+
     setLoading(false);
-  }, [user, pass, firstRun, locked, onRegister, onLogin]);
-
-  const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-
-  const inputClass = "w-full h-9 px-3 rounded-md bg-surface/60 border border-border text-[13px] text-text placeholder:text-text-muted/40 outline-none glow-input backdrop-blur-sm transition-all duration-200 disabled:opacity-30";
+  };
 
   return (
-    <div className="h-dvh flex flex-col bg-bg bg-grid relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-accent/[0.03] blur-[100px] pointer-events-none" />
-      <div className="absolute inset-0 bg-vignette pointer-events-none" />
+    <div className="relative flex h-screen items-center justify-center overflow-hidden bg-[#0a0e1a]">
+      <div className="noise-bg" />
+      <div className="absolute inset-0">
+        <div className="absolute top-[20%] left-[30%] w-[400px] h-[400px] rounded-full bg-cyan-500/8 blur-[100px]" />
+        <div className="absolute bottom-[20%] right-[20%] w-[350px] h-[350px] rounded-full bg-violet-500/8 blur-[100px]" />
+      </div>
 
-
-
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4">
-        <div
-          className="w-full max-w-[280px]"
-          style={{
-            opacity: ready ? 1 : 0,
-            transform: ready ? 'translateY(0)' : 'translateY(12px)',
-            transition: 'all 0.5s ease 0.1s',
-            animation: shake ? 'shake 0.4s ease-in-out' : undefined,
-          }}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-sm px-4"
+      >
+        <button
+          onClick={onBack}
+          className="mb-8 flex items-center gap-2 text-xs text-white/30 transition-colors hover:text-white/60"
         >
-          <div className="text-center mb-6">
-            <div className="animate-float mb-3">
-              {logo ? (
-                <img src={logo} alt="" className="w-11 h-11 mx-auto object-contain" style={{ maxWidth: '44px', maxHeight: '44px' }} />
-              ) : (
-                <div className="w-11 h-11 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto shadow-[0_0_20px_#22c55e12]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                </div>
-              )}
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Назад
+        </button>
+
+        <div className="glass rounded-2xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${firstRun ? 'bg-gradient-to-br from-emerald-500 to-cyan-600' : 'bg-gradient-to-br from-cyan-500 to-violet-600'}`}>
+              {firstRun ? <UserPlus className="h-5 w-5 text-white" /> : <Lock className="h-5 w-5 text-white" />}
             </div>
-            <h1 className="text-xl font-bold tracking-tight animate-glow-text mb-1">{name}</h1>
-            <p className="text-[11px] text-text-muted">
-              {firstRun ? 'Создайте данные для входа' : 'Вход в панель управления'}
-            </p>
+            <div>
+              <h2 className="text-base font-semibold text-white sm:text-lg">
+                {firstRun ? 'Создать аккаунт' : 'Вход в панель'}
+              </h2>
+              <p className="text-[10px] text-white/30 sm:text-xs">
+                {firstRun ? 'Первый запуск — задайте данные для входа' : 'Введите данные для входа'}
+              </p>
+            </div>
           </div>
 
-          {locked && (
-            <div className="mb-4 p-2.5 rounded-md border border-danger/20 bg-danger/5 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-danger flex-shrink-0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <div>
-                  <p className="text-[11px] text-danger font-medium">Заблокировано · {fmt(sec)}</p>
-                </div>
+          {firstRun && (
+            <div className="mb-4 rounded-lg bg-cyan-500/10 px-3 py-2 text-[11px] text-cyan-400/70">
+              Эти данные будут зашифрованы и использованы для всех последующих входов.
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-white/40">
+                Логин {firstRun && <span className="text-white/20">(мин. 3 символа)</span>}
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
+                <input
+                  type="text"
+                  value={user}
+                  onChange={e => { setUser(e.target.value); setError(''); }}
+                  disabled={loading}
+                  placeholder="admin"
+                  autoComplete={firstRun ? 'off' : 'username'}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/20 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50"
+                />
               </div>
             </div>
-          )}
-
-          {firstRun && (
-            <div className="mb-4 p-2.5 rounded-md border border-accent/15 bg-accent/5 backdrop-blur-sm flex items-start gap-2.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent mt-0.5 flex-shrink-0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <p className="text-[11px] text-text-secondary leading-relaxed">Первый запуск. Придумайте логин и надёжный пароль.</p>
-            </div>
-          )}
-
-          <form onSubmit={submit} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-text-secondary mb-1">Логин</label>
-              <input type="text" value={user} onChange={e => { setUser(e.target.value); setErr(''); }} disabled={locked || loading} autoComplete="username" className={inputClass} placeholder="admin" />
-            </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-text-secondary mb-1">Пароль</label>
+              <label className="mb-1.5 block text-xs font-medium text-white/40">
+                Пароль {firstRun && <span className="text-white/20">(мин. 4 символа)</span>}
+              </label>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20" />
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={pass}
-                  onChange={e => { setPass(e.target.value); setErr(''); }}
-                  disabled={locked || loading}
-                  autoComplete={firstRun ? 'new-password' : 'current-password'}
-                  className={inputClass + ' pr-8'}
+                  onChange={e => { setPass(e.target.value); setError(''); }}
+                  disabled={loading}
                   placeholder="••••••••"
+                  autoComplete={firstRun ? 'new-password' : 'current-password'}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-sm text-white placeholder-white/20 outline-none transition-all focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50"
                 />
                 <button
                   type="button"
-                  tabIndex={-1}
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted/50 hover:text-accent/70 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 transition-colors hover:text-white/50"
                 >
-                  {showPass ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  )}
+                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {err && <p className="text-[11px] text-danger">{err}</p>}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <button
               type="submit"
-              disabled={locked || loading}
-              className="w-full h-9 rounded-md bg-accent/90 text-bg text-[13px] font-semibold hover:bg-accent active:scale-[0.98] transition-all duration-150 disabled:opacity-30 disabled:pointer-events-none shadow-[0_0_15px_#22c55e18]"
+              disabled={loading}
+              className={`btn-glow flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white shadow-lg transition-all disabled:opacity-60 ${
+                firstRun
+                  ? 'bg-gradient-to-r from-emerald-500 to-cyan-600 shadow-emerald-500/15 hover:shadow-emerald-500/25'
+                  : 'bg-gradient-to-r from-cyan-500 to-violet-600 shadow-cyan-500/15 hover:shadow-cyan-500/25'
+              }`}
             >
-              {loading ? '...' : firstRun ? 'Создать' : 'Войти'}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                firstRun ? 'Создать аккаунт' : 'Войти'
+              )}
             </button>
           </form>
-        </div>
-      </main>
 
-      <footer className="relative z-10 py-3 text-center" style={{ opacity: ready ? 1 : 0, transition: 'opacity 0.5s ease 0.6s' }}>
-        <p className="text-[9px] text-text-muted/25">by invilink | LarsGravesen</p>
-      </footer>
+          {!firstRun && (
+            <p className="mt-4 text-center text-[10px] text-white/15">
+              Сессия активна 6 часов
+            </p>
+          )}
+        </div>
+
+        <p className="mt-6 text-center text-[10px] text-white/15 sm:text-[11px]">
+          FileUpShare v 1.0.1
+        </p>
+      </motion.div>
     </div>
   );
-};
+}
