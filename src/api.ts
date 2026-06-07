@@ -18,8 +18,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
 
   const res = await fetch(API_BASE + path, { ...options, headers });
-  if (res.status === 401) { setToken(null); window.location.reload(); }
+  if (res.status === 401 && !path.startsWith('/login') && !path.startsWith('/register') && !path.startsWith('/public/')) {
+    setToken(null);
+    window.location.reload();
+  }
   const text = await res.text();
+  if (!res.ok) throw new Error(text);
   try { return JSON.parse(text); } catch { throw new Error(text); }
 }
 

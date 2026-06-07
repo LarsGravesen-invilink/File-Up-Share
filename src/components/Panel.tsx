@@ -102,13 +102,15 @@ export function Panel({
     }
   };
 
+  const isLight = settings.panelTheme === 'light';
+
   return (
-    <div className={`relative flex h-screen flex-col overflow-hidden bg-[#080c18] ${uiScaleClass} ${headerScaleClass}`}>
+    <div className={`relative flex h-screen flex-col overflow-hidden ${isLight ? 'theme-light bg-[#f0f1f5]' : 'bg-[#080c18]'} ${uiScaleClass} ${headerScaleClass}`}>
       <div className="noise-bg" />
 
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-cyan-500/3 blur-[150px]" />
-        <div className="absolute bottom-0 left-[20%] w-[400px] h-[400px] rounded-full bg-violet-500/3 blur-[120px]" />
+        <div className={`absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] ${isLight ? 'bg-cyan-400/5' : 'bg-cyan-500/3'}`} />
+        <div className={`absolute bottom-0 left-[20%] w-[400px] h-[400px] rounded-full blur-[120px] ${isLight ? 'bg-violet-400/5' : 'bg-violet-500/3'}`} />
       </div>
 
       <Sidebar
@@ -120,27 +122,28 @@ export function Panel({
         name={settings.name}
         logo={settings.logo}
         headerScale={settings.headerScale}
+        isLight={isLight}
       />
 
       <div className="flex h-full flex-col lg:pl-[260px]">
-        <header className="relative z-30 flex-shrink-0 border-b border-white/5 bg-[#080c18]/90 backdrop-blur-xl">
+        <header className={`relative z-30 flex-shrink-0 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-white/80' : 'border-white/5 bg-[#080c18]/90'}`}>
           <div className="flex items-center justify-between px-4 py-3 lg:px-6">
             <div className="flex items-center gap-3 panel-header-inner">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-lg p-2 text-white/30 transition hover:bg-white/5 hover:text-white/60 lg:hidden"
+                className={`rounded-lg p-2 transition lg:hidden ${isLight ? 'text-slate-400 hover:bg-black/5 hover:text-slate-600' : 'text-white/30 hover:bg-white/5 hover:text-white/60'}`}
               >
                 <Menu className="h-5 w-5" />
               </button>
               <div>
-                <h1 className="text-sm font-semibold text-white">{pageTitles[page]}</h1>
-                <p className="text-[10px] text-white/20">{settings.name} · v 1.0.1</p>
+                <h1 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{pageTitles[page]}</h1>
+                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/20'}`}>{settings.name} · v 1.0.1</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-lg bg-white/3 px-3 py-1.5 sm:flex">
+              <div className={`hidden items-center gap-2 rounded-lg px-3 py-1.5 sm:flex ${isLight ? 'bg-black/3' : 'bg-white/3'}`}>
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50" />
-                <span className="text-[10px] text-white/30">Онлайн</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/30'}`}>Онлайн</span>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20">
                 <Upload className="h-3.5 w-3.5 text-cyan-400" />
@@ -163,9 +166,9 @@ export function Panel({
           </AnimatePresence>
         </main>
 
-        <footer className="relative z-30 flex-shrink-0 border-t border-white/3 bg-[#080c18]/90 backdrop-blur-xl">
+        <footer className={`relative z-30 flex-shrink-0 border-t backdrop-blur-xl ${isLight ? 'border-black/5 bg-white/80' : 'border-white/3 bg-[#080c18]/90'}`}>
           <div className="overflow-hidden py-2 px-4 lg:px-6">
-            <div className="marquee-track text-[10px] tracking-widest text-white/8">
+            <div className={`marquee-track text-[10px] tracking-widest ${isLight ? 'text-black/6' : 'text-white/8'}`}>
               <span>{marqueeContent}</span>
               <span>{marqueeContent}</span>
             </div>

@@ -48,20 +48,22 @@ export function DemoModal({ share, settings, onClose }: Props) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4 pb-10 pt-10"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4 pb-20 pt-6 sm:pt-10"
+      onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="relative w-full max-w-lg"
+        onClick={e => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
           <span className="text-xs text-white/30">Предпросмотр страницы</span>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-2 text-white/40 transition active:scale-90 hover:bg-white/10 hover:text-white"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -172,6 +174,13 @@ export function DemoModal({ share, settings, onClose }: Props) {
             </footer>
           )}
         </div>
+
+        <button
+          onClick={onClose}
+          className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 py-3 text-xs font-medium text-white/40 transition active:scale-[0.97] hover:bg-white/10 hover:text-white/60"
+        >
+          Закрыть
+        </button>
       </motion.div>
     </motion.div>
   );

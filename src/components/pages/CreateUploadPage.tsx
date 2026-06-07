@@ -127,22 +127,15 @@ export function CreateUploadPage({ settings, onAdd }: Props) {
             <label className="mb-1.5 block text-xs text-white/30">Обложка 4:3 <span className="text-white/15">(необязательно)</span></label>
             <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
             {coverData ? (
-              <div className="relative overflow-hidden rounded-lg">
-                <img src={coverData} alt="" className="aspect-[4/3] w-full object-cover" />
-                <div className="absolute top-2 right-2 flex gap-1">
-                  <button
-                    onClick={() => coverInputRef.current?.click()}
-                    className="rounded-lg bg-black/50 p-1.5 text-white/60 transition active:scale-90 hover:bg-black/70 hover:text-white"
-                  >
-                    <ImagePlus className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setCoverData('')}
-                    className="rounded-lg bg-black/50 p-1.5 text-white/60 transition active:scale-90 hover:bg-red-500/50 hover:text-white"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+              <div className="flex items-center gap-3 rounded-lg bg-white/3 p-2">
+                <img src={coverData} alt="" className="h-12 w-16 rounded-md object-cover" />
+                <span className="flex-1 text-xs text-white/40">Обложка добавлена</span>
+                <button onClick={() => coverInputRef.current?.click()} className="rounded-lg p-1.5 text-white/30 transition active:scale-90 hover:text-white/60">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => setCoverData('')} className="rounded-lg p-1.5 text-white/30 transition active:scale-90 hover:text-red-400">
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             ) : (
               <button
