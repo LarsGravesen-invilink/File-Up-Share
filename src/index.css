@@ -324,10 +324,7 @@ main {
 .no-autosave {
   autocomplete: off;
 }
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marquee 30s linear infinite;
-}
+/* корректный конец блока .no-autosave */
 
 /* Блокировка копирования текста и медиа на публичных страницах */
 .no-select {
