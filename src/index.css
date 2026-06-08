@@ -1,8 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
+@theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -324,7 +322,10 @@ main {
 .no-autosave {
   autocomplete: off;
 }
-/* корректный конец блока .no-autosave */
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
 
 /* Блокировка копирования текста и медиа на публичных страницах */
 .no-select {
