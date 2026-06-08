@@ -52,12 +52,26 @@ if [ "$ALREADY_INSTALLED" -eq 1 ]; then
       cp -r /tmp/File-Up-Share/server "$INSTALL_DIR/" 2>/dev/null
       cp -r /tmp/File-Up-Share/src "$INSTALL_DIR/" 2>/dev/null
       cp /tmp/File-Up-Share/package.json "$INSTALL_DIR/" 2>/dev/null
+      cp /tmp/File-Up-Share/package-lock.json "$INSTALL_DIR/" 2>/dev/null
       cp /tmp/File-Up-Share/vite.config.ts "$INSTALL_DIR/" 2>/dev/null
       cp /tmp/File-Up-Share/tsconfig.json "$INSTALL_DIR/" 2>/dev/null
       cp /tmp/File-Up-Share/index.html "$INSTALL_DIR/" 2>/dev/null
       cd "$INSTALL_DIR"
-      npm install >/dev/null 2>&1
-      npm run build >/dev/null 2>&1
+      export npm_config_unsafe_perm=true
+      if npm install >/tmp/fileupshare-npm-install.log 2>&1; then
+        ok "Модули установлены"
+      else
+        err "npm install не удался"
+        echo "Лог установки: /tmp/fileupshare-npm-install.log"
+        exit 1
+      fi
+      if npm run build >/tmp/fileupshare-build.log 2>&1 && [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        ok "Панель собрана"
+      else
+        err "Сборка не удалась"
+        echo "Лог сборки: /tmp/fileupshare-build.log"
+        exit 1
+      fi
       systemctl restart "$SVC"
       rm -rf /tmp/File-Up-Share
       echo ""
@@ -105,6 +119,13 @@ else
   exit 1
 fi
 
+if ! command -v npm >/dev/null 2>&1; then
+  err "npm не установлен"
+  exit 1
+fi
+ok "npm $(npm -v)"
+export npm_config_unsafe_perm=true
+
 echo ""
 echo -e "  ${W}Установка FileUpShare${N}"
 echo ""
@@ -118,15 +139,23 @@ cp -r /tmp/File-Up-Share/.gitignore "$INSTALL_DIR/" 2>/dev/null
 ok "Загружено"
 
 cd "$INSTALL_DIR"
-npm install >/dev/null 2>&1
-ok "Модули"
+  export npm_config_unsafe_perm=true
+  if npm install >/tmp/fileupshare-npm-install.log 2>&1; then
+    ok "Модули установлены"
+  else
+    err "npm install не удался"
+    echo "Лог установки: /tmp/fileupshare-npm-install.log"
+    exit 1
+  fi
 
-info "Сборка панели..."
-if npm run build >/dev/null 2>&1 && [ -f "$INSTALL_DIR/dist/index.html" ]; then
-  ok "Собрано"
-else
-  warn "Сборка не удалась, панель покажет инструкцию"
-fi
+  info "Сборка панели..."
+  if npm run build >/tmp/fileupshare-build.log 2>&1 && [ -f "$INSTALL_DIR/dist/index.html" ]; then
+    ok "Собрано"
+  else
+    err "Сборка не удалась"
+    echo "Лог сборки: /tmp/fileupshare-build.log"
+    exit 1
+  fi
 
 NODE_PORT=3000
 while ss -tlnp 2>/dev/null | grep -q ":${NODE_PORT} "; do

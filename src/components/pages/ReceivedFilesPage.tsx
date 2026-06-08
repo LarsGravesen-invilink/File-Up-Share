@@ -17,6 +17,8 @@ function getFileIcon(type: string) {
 }
 
 export function ReceivedFilesPage({ files, onRemove }: Props) {
+  const actionButtonClass = 'rounded-lg p-2 transition duration-200 ease-out hover:scale-110 active:scale-95 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+
   return (
     <div className="space-y-4">
       <motion.div
@@ -51,7 +53,7 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
               className="glass-card group rounded-xl p-4"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/5">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/80 transition duration-200 ease-out group-hover:bg-white/10">
                   {getFileIcon(file.type)}
                 </div>
 
@@ -77,21 +79,21 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
                     href={api.getReceivedViewUrl(file.id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-2 bg-violet-500/10 text-violet-400 transition active:scale-90 active:opacity-70 hover:bg-violet-500/20"
+                    className={`${actionButtonClass} bg-violet-500/10 text-violet-400 hover:bg-violet-500/20`}
                     title="Посмотреть"
                   >
                     <Eye className="h-3.5 w-3.5" />
                   </a>
                   <a
                     href={api.getReceivedDownloadUrl(file.id)}
-                    className="rounded-lg p-2 bg-cyan-500/10 text-cyan-400 transition active:scale-90 active:opacity-70 hover:bg-cyan-500/20"
+                    className={`${actionButtonClass} bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20`}
                     title="Скачать"
                   >
                     <Download className="h-3.5 w-3.5" />
                   </a>
                   <button
                     onClick={() => onRemove(file.id)}
-                    className="rounded-lg p-2 bg-red-500/10 text-red-400 transition active:scale-90 active:opacity-70 hover:bg-red-500/20"
+                    className={`${actionButtonClass} bg-red-500/10 text-red-400 hover:bg-red-500/20`}
                     title="Удалить"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

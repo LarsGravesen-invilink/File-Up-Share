@@ -194,7 +194,7 @@ export function ShareView({ encoded }: Props) {
                       <video
                         src={api.getFileUrl(share.id, currentVisual.storedName)}
                         controls
-                        preload="metadata"
+                        preload="auto"
                         controlsList={!canDownload ? 'nodownload' : ''}
                         className="h-full w-full"
                         onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
