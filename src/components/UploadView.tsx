@@ -182,9 +182,9 @@ export function UploadView({ encoded }: Props) {
             )}
 
             <div className="no-select">
-              <h1 className="text-lg font-bold sm:text-xl" style={{ color: 'var(--page-text, white)' }}>{upload.title}</h1>
+              <h1 className="text-lg font-bold text-white sm:text-xl">{upload.title}</h1>
               {upload.comment && (
-                <p className="mt-1 text-xs sm:text-sm" style={{ color: 'var(--page-text-muted, rgba(255,255,255,0.3))' }}>{autolink(upload.comment)}</p>
+                <p className="mt-1 text-xs text-white/30 sm:text-sm">{autolink(upload.comment)}</p>
               )}
             </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderOpen, Copy, Trash2, ExternalLink, Clock, Lock, FileIcon, Share as ShareIcon, Plus, Check, Eye, Download, AlertTriangle } from 'lucide-react';
+import { FolderOpen, Copy, Trash2, ExternalLink, Clock, Lock, FileIcon, Share as ShareIcon, Plus, Check, Eye, Download } from 'lucide-react';
 import type { Share } from '../../types';
 import { formatDate, timeLeft, formatBytes } from '../../helpers';
 
@@ -14,8 +14,6 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [extendModal, setExtendModal] = useState<string | null>(null);
   const [extendHours, setExtendHours] = useState(24);
-  const [extendMinutes, setExtendMinutes] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const copyLink = (share: Share) => {
     navigator.clipboard.writeText(window.location.origin + share.link);
@@ -36,18 +34,9 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
 
   const handleExtend = () => {
     if (extendModal) {
-      const totalHours = extendHours + extendMinutes / 60;
-      onExtend(extendModal, totalHours);
+      onExtend(extendModal, extendHours);
       setExtendModal(null);
       setExtendHours(24);
-      setExtendMinutes(0);
-    }
-  };
-
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      onRemove(deleteTarget);
-      setDeleteTarget(null);
     }
   };
 
@@ -125,43 +114,43 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
                   </div>
                 </div>
 
-                <div className="flex flex-shrink-0 gap-1.5">
+                <div className="flex flex-shrink-0 gap-1">
                   <button
                     onClick={() => copyLink(share)}
-                    className={`rounded-lg p-2 transition active:scale-90 ${copiedId === share.id ? 'bg-emerald-500/15 text-emerald-400' : 'text-white/20 hover:bg-white/5 hover:text-cyan-400'}`}
+                    className={`rounded-lg p-2 transition active:scale-90 active:opacity-70 ${copiedId === share.id ? 'bg-emerald-500/20 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'}`}
                     title="Копировать ссылку"
                   >
-                    {copiedId === share.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copiedId === share.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
                   <button
                     onClick={() => shareLink(share)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-blue-400"
+                    className="rounded-lg p-2 bg-blue-500/10 text-blue-400 transition active:scale-90 active:opacity-70 hover:bg-blue-500/20"
                     title="Поделиться"
                   >
-                    <ShareIcon className="h-4 w-4" />
+                    <ShareIcon className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setExtendModal(share.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-emerald-400"
+                    className="rounded-lg p-2 bg-emerald-500/10 text-emerald-400 transition active:scale-90 active:opacity-70 hover:bg-emerald-500/20"
                     title="Продлить"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
                   <a
                     href={share.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
+                    className="rounded-lg p-2 bg-violet-500/10 text-violet-400 transition active:scale-90 active:opacity-70 hover:bg-violet-500/20"
                     title="Открыть"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                   <button
-                    onClick={() => setDeleteTarget(share.id)}
-                    className="rounded-lg p-2.5 text-white/30 transition active:scale-90 hover:bg-red-500/15 hover:text-red-400"
+                    onClick={() => onRemove(share.id)}
+                    className="rounded-lg p-2 bg-red-500/10 text-red-400 transition active:scale-90 active:opacity-70 hover:bg-red-500/20"
                     title="Удалить"
                   >
-                    <Trash2 className="h-5 w-5" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -170,7 +159,6 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
         </AnimatePresence>
       )}
 
-      {/* Модаль продления — с часами и минутами */}
       <AnimatePresence>
         {extendModal && (
           <motion.div
@@ -186,28 +174,15 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
               className="glass w-full max-w-sm rounded-2xl p-6"
             >
               <h3 className="mb-4 text-sm font-semibold text-white">Продлить раздачу</h3>
-              <div className="mb-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-xs text-white/30">Часы</label>
-                  <input
-                    type="number"
-                    value={extendHours}
-                    onChange={e => setExtendHours(Math.max(0, Number(e.target.value)))}
-                    min={0}
-                    className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs text-white/30">Минуты</label>
-                  <input
-                    type="number"
-                    value={extendMinutes}
-                    onChange={e => setExtendMinutes(Math.max(0, Math.min(59, Number(e.target.value))))}
-                    min={0}
-                    max={59}
-                    className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs text-white/30">Добавить часов</label>
+                <input
+                  type="number"
+                  value={extendHours}
+                  onChange={e => setExtendHours(Math.max(1, Number(e.target.value)))}
+                  min={1}
+                  className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
+                />
               </div>
               <div className="flex gap-2">
                 <button
@@ -218,51 +193,9 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
                 </button>
                 <button
                   onClick={handleExtend}
-                  disabled={extendHours === 0 && extendMinutes === 0}
-                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 py-2 text-xs font-medium text-white disabled:opacity-40"
+                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 py-2 text-xs font-medium text-white"
                 >
                   Продлить
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Модальное подтверждение удаления */}
-      <AnimatePresence>
-        {deleteTarget && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="glass w-full max-w-sm rounded-2xl p-6"
-            >
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15">
-                  <AlertTriangle className="h-5 w-5 text-red-400" />
-                </div>
-                <h3 className="text-sm font-semibold text-white">Удалить раздачу?</h3>
-              </div>
-              <p className="mb-5 text-xs text-white/40">Раздача и все связанные файлы будут удалены без возможности восстановления.</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 py-2.5 text-xs font-medium text-white transition active:scale-95"
-                >
-                  Удалить
                 </button>
               </div>
             </motion.div>

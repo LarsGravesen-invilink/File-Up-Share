@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Check, Eye, EyeOff, Type, Save, Loader2, CheckCircle } from 'lucide-react';
+import { Palette, Check, Eye, EyeOff, Type, Save } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings } from '../../types';
 import { themes } from '../../themes';
@@ -12,26 +12,18 @@ interface Props {
 
 export function DesignPage({ settings, onUpdate }: Props) {
   const [confirmTheme, setConfirmTheme] = useState<string | null>(null);
-
-  // Локальный стейт для рекламного блока
-  const [adEnabled, setAdEnabled] = useState(settings.adEnabled);
-  const [adText, setAdText] = useState(settings.adText);
-  const [adSaving, setAdSaving] = useState(false);
+  const [adTextLocal, setAdTextLocal] = useState(settings.adText);
   const [adSaved, setAdSaved] = useState(false);
-
-  const adHasChanges = adEnabled !== settings.adEnabled || adText !== settings.adText;
-
-  const handleAdSave = async () => {
-    setAdSaving(true);
-    await onUpdate({ adEnabled, adText });
-    setAdSaving(false);
-    setAdSaved(true);
-    setTimeout(() => setAdSaved(false), 2000);
-  };
 
   const applyTheme = (id: string) => {
     onUpdate({ pageTheme: id });
     setConfirmTheme(null);
+  };
+
+  const saveAdText = () => {
+    onUpdate({ adText: adTextLocal });
+    setAdSaved(true);
+    setTimeout(() => setAdSaved(false), 2000);
   };
 
   return (
@@ -58,7 +50,7 @@ export function DesignPage({ settings, onUpdate }: Props) {
             <button
               key={t.id}
               onClick={() => setConfirmTheme(t.id)}
-              className={`group relative overflow-hidden rounded-lg p-3 text-left transition-all hover:scale-[1.02] ${
+              className={`group relative overflow-hidden rounded-lg p-3 text-left transition-all active:scale-95 active:opacity-80 hover:scale-[1.02] ${
                 settings.pageTheme === t.id ? 'ring-2 ring-cyan-500/50' : ''
               }`}
               style={{ background: t.bg }}
@@ -105,35 +97,33 @@ export function DesignPage({ settings, onUpdate }: Props) {
                 <Type className="h-3.5 w-3.5" />
                 Рекламный блок
               </div>
-              <Toggle checked={adEnabled} onChange={v => { setAdEnabled(v); }} />
+              <Toggle checked={settings.adEnabled} onChange={v => onUpdate({ adEnabled: v })} />
             </div>
-            {adEnabled && (
+            {settings.adEnabled && (
               <>
                 <textarea
-                  value={adText}
-                  onChange={e => setAdText(e.target.value)}
+                  value={adTextLocal}
+                  onChange={e => setAdTextLocal(e.target.value)}
                   placeholder="Текст (ссылки станут кликабельными)"
                   rows={2}
+                  autoComplete="off"
                   className="mt-3 w-full resize-none rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
                 />
-                <p className="mt-1 text-[10px] text-white/15">Отображается внизу публичных страниц. Ссылки автоматически кликабельны.</p>
+                <p className="mt-1 text-[10px] text-white/15">
+                  Отображается внизу публичных страниц. Текст некопируем, ссылки кликабельны.
+                </p>
+                <button
+                  onClick={saveAdText}
+                  className={`btn-glow mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold text-white transition active:scale-95 ${
+                    adSaved
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-gradient-to-r from-violet-500/80 to-cyan-600/80 hover:from-violet-500 hover:to-cyan-600'
+                  }`}
+                >
+                  {adSaved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                  {adSaved ? 'Сохранено' : 'Сохранить рекламный блок'}
+                </button>
               </>
-            )}
-            {adHasChanges && (
-              <button
-                onClick={handleAdSave}
-                disabled={adSaving}
-                className="btn-glow mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/15 transition hover:shadow-cyan-500/25 disabled:opacity-30"
-              >
-                {adSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : adSaved ? (
-                  <CheckCircle className="h-3.5 w-3.5" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                {adSaved ? 'Сохранено' : 'Сохранить'}
-              </button>
             )}
           </div>
         </div>
@@ -153,13 +143,13 @@ export function DesignPage({ settings, onUpdate }: Props) {
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmTheme(null)}
-                className="flex-1 rounded-lg border border-white/10 py-2 text-xs text-white/40 transition hover:bg-white/5"
+                className="flex-1 rounded-lg border border-white/10 py-2 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
               >
                 Отмена
               </button>
               <button
                 onClick={() => applyTheme(confirmTheme)}
-                className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 py-2 text-xs font-medium text-white transition"
+                className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 py-2 text-xs font-medium text-white transition active:scale-95"
               >
                 Применить
               </button>

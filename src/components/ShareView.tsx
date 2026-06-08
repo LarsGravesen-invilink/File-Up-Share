@@ -159,9 +159,9 @@ export function ShareView({ encoded }: Props) {
 
             {share.title && (
               <div>
-                <h1 className="text-lg font-bold sm:text-xl" style={{ color: 'var(--page-text, inherit)' }}>{share.title}</h1>
+                <h1 className="text-lg font-bold text-white sm:text-xl">{share.title}</h1>
                 {share.comment && (
-                  <p className="mt-1 text-xs sm:text-sm" style={{ color: 'var(--page-text-muted, inherit)' }}>{autolink(share.comment)}</p>
+                  <p className="mt-1 text-xs text-white/30 sm:text-sm">{autolink(share.comment)}</p>
                 )}
               </div>
             )}
@@ -194,6 +194,7 @@ export function ShareView({ encoded }: Props) {
                       <video
                         src={api.getFileUrl(share.id, currentVisual.storedName)}
                         controls
+                        preload="metadata"
                         controlsList={!canDownload ? 'nodownload' : ''}
                         className="h-full w-full"
                         onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
@@ -236,8 +237,8 @@ export function ShareView({ encoded }: Props) {
                         <Volume2 className="h-3.5 w-3.5 text-violet-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm" style={{ color: 'var(--page-text, white)' }}>{share.hideExtensions ? file.name.replace(/\.[^.]+$/, '') : file.name}</div>
-                        <div className="text-[10px]" style={{ color: 'var(--page-text-muted, rgba(255,255,255,0.2))' }}>{formatBytes(file.size)}</div>
+                        <div className="truncate text-sm text-white">{share.hideExtensions ? file.name.replace(/\.[^.]+$/, '') : file.name}</div>
+                        <div className="text-[10px] text-white/20">{formatBytes(file.size)}</div>
                       </div>
                     </div>
                     <AudioPlayer
@@ -260,10 +261,10 @@ export function ShareView({ encoded }: Props) {
                       {file.type.startsWith('video') ? <Film className="h-4 w-4 text-blue-400" /> : file.type.startsWith('image') ? <Image className="h-4 w-4 text-violet-400" /> : <Eye className="h-4 w-4 text-cyan-400" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium" style={{ color: 'var(--page-text, white)' }}>
+                      <div className="truncate text-sm font-medium text-white">
                         {share.hideExtensions ? file.name.replace(/\.[^.]+$/, '') : file.name}
                       </div>
-                      <div className="text-[10px] sm:text-[11px]" style={{ color: 'var(--page-text-muted, rgba(255,255,255,0.2))' }}>{formatBytes(file.size)}</div>
+                      <div className="text-[10px] text-white/20 sm:text-[11px]">{formatBytes(file.size)}</div>
                     </div>
                     {canDownload && (
                       <a

@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Settings, Upload, Moon, Sun, HardDrive, Maximize, Type,
-  Clock, Globe, Save, Loader2, CheckCircle
+  Clock, Globe
 } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings as SettingsType } from '../../types';
@@ -27,37 +27,8 @@ interface Props {
 }
 
 export function SettingsPage({ settings, onUpdate }: Props) {
-  // Локальный стейт — не автосохраняем
-  const [name, setName] = useState(settings.name);
   const [logoPreview, setLogoPreview] = useState(settings.logo);
-  const [panelTheme, setPanelTheme] = useState(settings.panelTheme);
-  const [storagePath, setStoragePath] = useState(settings.storagePath);
-  const [receivedPath, setReceivedPath] = useState(settings.receivedPath);
-  const [quotaEnabled, setQuotaEnabled] = useState(settings.quotaEnabled);
-  const [quotaValue, setQuotaValue] = useState(settings.quotaValue);
-  const [quotaUnit, setQuotaUnit] = useState(settings.quotaUnit);
-  const [uiScale, setUiScale] = useState(settings.uiScale);
-  const [headerScale, setHeaderScale] = useState(settings.headerScale);
-  const [timezone, setTimezone] = useState(settings.timezone);
-
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const logoRef = useRef<HTMLInputElement>(null);
-
-  // Синхронизируем локальный стейт если settings снаружи изменились
-  useEffect(() => {
-    setName(settings.name);
-    setLogoPreview(settings.logo);
-    setPanelTheme(settings.panelTheme);
-    setStoragePath(settings.storagePath);
-    setReceivedPath(settings.receivedPath);
-    setQuotaEnabled(settings.quotaEnabled);
-    setQuotaValue(settings.quotaValue);
-    setQuotaUnit(settings.quotaUnit);
-    setUiScale(settings.uiScale);
-    setHeaderScale(settings.headerScale);
-    setTimezone(settings.timezone);
-  }, [settings]);
 
   const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,41 +37,9 @@ export function SettingsPage({ settings, onUpdate }: Props) {
     reader.onload = () => {
       const result = reader.result as string;
       setLogoPreview(result);
+      onUpdate({ logo: result });
     };
     reader.readAsDataURL(file);
-  };
-
-  const hasChanges =
-    name !== settings.name ||
-    logoPreview !== settings.logo ||
-    panelTheme !== settings.panelTheme ||
-    storagePath !== settings.storagePath ||
-    receivedPath !== settings.receivedPath ||
-    quotaEnabled !== settings.quotaEnabled ||
-    quotaValue !== settings.quotaValue ||
-    quotaUnit !== settings.quotaUnit ||
-    uiScale !== settings.uiScale ||
-    headerScale !== settings.headerScale ||
-    timezone !== settings.timezone;
-
-  const handleSave = async () => {
-    setSaving(true);
-    await onUpdate({
-      name,
-      logo: logoPreview,
-      panelTheme,
-      storagePath,
-      receivedPath,
-      quotaEnabled,
-      quotaValue,
-      quotaUnit,
-      uiScale,
-      headerScale,
-      timezone,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -123,8 +62,8 @@ export function SettingsPage({ settings, onUpdate }: Props) {
           <div>
             <label className="mb-1.5 block text-xs text-white/30">Название сервиса</label>
             <input
-              value={name}
-              onChange={e => setName(e.target.value)}
+              value={settings.name}
+              onChange={e => onUpdate({ name: e.target.value })}
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500/30"
             />
           </div>
@@ -148,7 +87,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               </button>
               {logoPreview && (
                 <button
-                  onClick={() => setLogoPreview('')}
+                  onClick={() => { setLogoPreview(''); onUpdate({ logo: '' }); }}
                   className="text-xs text-red-400/50 transition hover:text-red-400"
                 >
                   Удалить
@@ -168,9 +107,9 @@ export function SettingsPage({ settings, onUpdate }: Props) {
         <h4 className="mb-4 text-xs font-medium text-white/40">Тема панели</h4>
         <div className="flex gap-3">
           <button
-            onClick={() => setPanelTheme('dark')}
+            onClick={() => onUpdate({ panelTheme: 'dark' })}
             className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-xs font-medium transition ${
-              panelTheme === 'dark'
+              settings.panelTheme === 'dark'
                 ? 'bg-white/10 text-white ring-1 ring-white/20'
                 : 'bg-white/3 text-white/30 hover:bg-white/5'
             }`}
@@ -178,9 +117,9 @@ export function SettingsPage({ settings, onUpdate }: Props) {
             <Moon className="h-4 w-4" /> Тёмная
           </button>
           <button
-            onClick={() => setPanelTheme('light')}
+            onClick={() => onUpdate({ panelTheme: 'light' })}
             className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-xs font-medium transition ${
-              panelTheme === 'light'
+              settings.panelTheme === 'light'
                 ? 'bg-white/10 text-white ring-1 ring-white/20'
                 : 'bg-white/3 text-white/30 hover:bg-white/5'
             }`}
@@ -203,8 +142,8 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               <HardDrive className="h-3 w-3" /> Путь раздач
             </label>
             <input
-              value={storagePath}
-              onChange={e => setStoragePath(e.target.value)}
+              value={settings.storagePath}
+              onChange={e => onUpdate({ storagePath: e.target.value })}
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white/50 outline-none focus:border-cyan-500/30"
             />
           </div>
@@ -213,25 +152,25 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               <HardDrive className="h-3 w-3" /> Путь загрузок
             </label>
             <input
-              value={receivedPath}
-              onChange={e => setReceivedPath(e.target.value)}
+              value={settings.receivedPath}
+              onChange={e => onUpdate({ receivedPath: e.target.value })}
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white/50 outline-none focus:border-cyan-500/30"
             />
           </div>
 
           <div className="flex items-center justify-between rounded-lg bg-white/3 px-4 py-3">
             <span className="text-xs text-white/40">Квота хранилища</span>
-            <Toggle checked={quotaEnabled} onChange={setQuotaEnabled} />
+            <Toggle checked={settings.quotaEnabled} onChange={v => onUpdate({ quotaEnabled: v })} />
           </div>
 
-          {quotaEnabled && (
+          {settings.quotaEnabled && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-xs text-white/30">Размер</label>
                 <input
                   type="number"
-                  value={quotaValue}
-                  onChange={e => setQuotaValue(Number(e.target.value))}
+                  value={settings.quotaValue}
+                  onChange={e => onUpdate({ quotaValue: Number(e.target.value) })}
                   onFocus={e => e.currentTarget.select()}
                   min={1}
                   className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
@@ -240,8 +179,8 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               <div>
                 <label className="mb-1.5 block text-xs text-white/30">Единица</label>
                 <select
-                  value={quotaUnit}
-                  onChange={e => setQuotaUnit(e.target.value)}
+                  value={settings.quotaUnit}
+                  onChange={e => onUpdate({ quotaUnit: e.target.value })}
                   className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
                 >
                   <option value="MB">МБ</option>
@@ -269,9 +208,9 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               {(['default', 'medium', 'large'] as const).map(s => (
                 <button
                   key={s}
-                  onClick={() => setUiScale(s)}
+                  onClick={() => onUpdate({ uiScale: s })}
                   className={`flex-1 rounded-lg py-2.5 text-xs font-medium transition ${
-                    uiScale === s
+                    settings.uiScale === s
                       ? 'bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30'
                       : 'bg-white/3 text-white/30 hover:bg-white/5'
                   }`}
@@ -290,9 +229,9 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               {(['default', 'medium', 'large'] as const).map(s => (
                 <button
                   key={s}
-                  onClick={() => setHeaderScale(s)}
+                  onClick={() => onUpdate({ headerScale: s })}
                   className={`flex-1 rounded-lg py-2.5 text-xs font-medium transition ${
-                    headerScale === s
+                    settings.headerScale === s
                       ? 'bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/30'
                       : 'bg-white/3 text-white/30 hover:bg-white/5'
                   }`}
@@ -321,8 +260,8 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               <Globe className="h-3 w-3" /> Часовой пояс
             </label>
             <select
-              value={timezone}
-              onChange={e => setTimezone(e.target.value)}
+              value={settings.timezone}
+              onChange={e => onUpdate({ timezone: e.target.value })}
               className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
             >
               {timezones.map(tz => (
@@ -332,24 +271,6 @@ export function SettingsPage({ settings, onUpdate }: Props) {
             <p className="mt-1.5 text-[10px] text-white/15">Используется во всей панели: дашборд, логи, таймеры, уведомления бота</p>
           </div>
         </div>
-      </motion.div>
-
-      {/* Кнопка Сохранить — аналогично TelegramPage */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges || saving}
-          className="btn-glow flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 py-3 text-xs font-semibold text-white shadow-lg shadow-cyan-500/15 transition hover:shadow-cyan-500/25 disabled:opacity-30"
-        >
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : saved ? (
-            <CheckCircle className="h-3.5 w-3.5" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-          {saved ? 'Сохранено' : 'Сохранить настройки'}
-        </button>
       </motion.div>
     </div>
   );
