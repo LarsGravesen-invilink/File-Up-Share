@@ -108,7 +108,7 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
 
       {adEnabled && (
         <footer className="relative z-30 flex-shrink-0 backdrop-blur-xl" style={{ borderTop: '1px solid ' + theme.borderColor, background: theme.dark ? theme.bg + 'e6' : theme.bg + 'e6' }}>
-          <div className="px-4 py-3 text-center text-[11px] leading-relaxed sm:px-6 sm:text-xs" style={{ color: theme.textMuted }}>
+          <div className="no-select public-page-link px-4 py-3 text-center text-[11px] leading-relaxed sm:px-6 sm:text-xs" style={{ color: theme.textMuted }}>
             {adContent}
           </div>
         </footer>

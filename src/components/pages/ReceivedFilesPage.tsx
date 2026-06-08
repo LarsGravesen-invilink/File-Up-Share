@@ -77,21 +77,21 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
                     href={api.getReceivedViewUrl(file.id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
+                    className="rounded-lg p-2 bg-violet-500/10 text-violet-400 transition active:scale-90 active:opacity-70 hover:bg-violet-500/20"
                     title="Посмотреть"
                   >
                     <Eye className="h-3.5 w-3.5" />
                   </a>
                   <a
                     href={api.getReceivedDownloadUrl(file.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-cyan-400"
+                    className="rounded-lg p-2 bg-cyan-500/10 text-cyan-400 transition active:scale-90 active:opacity-70 hover:bg-cyan-500/20"
                     title="Скачать"
                   >
                     <Download className="h-3.5 w-3.5" />
                   </a>
                   <button
                     onClick={() => onRemove(file.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-lg p-2 bg-red-500/10 text-red-400 transition active:scale-90 active:opacity-70 hover:bg-red-500/20"
                     title="Удалить"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

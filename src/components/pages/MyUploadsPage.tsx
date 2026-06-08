@@ -104,21 +104,21 @@ export function MyUploadsPage({ uploads, onRemove, onExtend }: Props) {
                 <div className="flex flex-shrink-0 gap-1">
                   <button
                     onClick={() => copyLink(upload)}
-                    className={`rounded-lg p-2 transition active:scale-90 ${copiedId === upload.id ? 'bg-emerald-500/15 text-emerald-400' : 'text-white/20 hover:bg-white/5 hover:text-cyan-400'}`}
+                    className={`rounded-lg p-2 transition active:scale-90 active:opacity-70 ${copiedId === upload.id ? 'bg-emerald-500/20 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'}`}
                     title="Копировать ссылку"
                   >
                     {copiedId === upload.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
                   <button
                     onClick={() => shareLink(upload)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-blue-400"
+                    className="rounded-lg p-2 bg-blue-500/10 text-blue-400 transition active:scale-90 active:opacity-70 hover:bg-blue-500/20"
                     title="Поделиться"
                   >
                     <ShareIcon className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setExtendModal(upload.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-emerald-400"
+                    className="rounded-lg p-2 bg-emerald-500/10 text-emerald-400 transition active:scale-90 active:opacity-70 hover:bg-emerald-500/20"
                     title="Продлить"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -127,14 +127,14 @@ export function MyUploadsPage({ uploads, onRemove, onExtend }: Props) {
                     href={upload.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
+                    className="rounded-lg p-2 bg-violet-500/10 text-violet-400 transition active:scale-90 active:opacity-70 hover:bg-violet-500/20"
                     title="Открыть"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                   <button
                     onClick={() => onRemove(upload.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-lg p-2 bg-red-500/10 text-red-400 transition active:scale-90 active:opacity-70 hover:bg-red-500/20"
                     title="Удалить"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

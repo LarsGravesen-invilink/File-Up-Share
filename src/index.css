@@ -209,18 +209,61 @@ a[class*="rounded-lg"]:active {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* UI Scale — zoom работает только на десктопе, на мобильных отключён */
+/* UI Scale — zoom на десктопе, font-size scaling на мобильных */
 .scale-default { zoom: 1; }
 .scale-medium { zoom: 1.08; }
 .scale-large { zoom: 1.18; }
 
 @media (max-width: 1024px) {
-  /* На мобильных и планшетах zoom убираем — h-screen должен быть ровно 100vh */
+  /* На мобильных и планшетах zoom убираем чтобы не ломать h-dvh */
   .scale-default,
   .scale-medium,
   .scale-large {
     zoom: 1;
   }
+  /* Вместо zoom используем масштаб через font-size на всех элементах */
+  .scale-medium {
+    --ui-scale: 1.08;
+  }
+  .scale-large {
+    --ui-scale: 1.18;
+  }
+  .scale-medium .glass-card,
+  .scale-medium .glass,
+  .scale-medium main > * {
+    font-size: calc(1em * var(--ui-scale, 1));
+  }
+  /* Масштаб иконок, паддингов кнопок и текста внутри main */
+  .scale-medium main .text-sm { font-size: calc(0.875rem * 1.08) !important; }
+  .scale-medium main .text-xs { font-size: calc(0.75rem * 1.08) !important; }
+  .scale-medium main .text-\[10px\] { font-size: calc(0.625rem * 1.08) !important; }
+  .scale-medium main .text-\[11px\] { font-size: calc(0.6875rem * 1.08) !important; }
+  .scale-medium main p.text-base { font-size: calc(1rem * 1.08) !important; }
+  .scale-medium main .rounded-xl { padding: calc(1.25rem * 1.08); }
+  .scale-large main .text-sm { font-size: calc(0.875rem * 1.18) !important; }
+  .scale-large main .text-xs { font-size: calc(0.75rem * 1.18) !important; }
+  .scale-large main .text-\[10px\] { font-size: calc(0.625rem * 1.18) !important; }
+  .scale-large main .text-\[11px\] { font-size: calc(0.6875rem * 1.18) !important; }
+  .scale-large main p.text-base { font-size: calc(1rem * 1.18) !important; }
+  .scale-large main .rounded-xl { padding: calc(1.25rem * 1.18); }
+  /* Масштаб кнопок и инпутов */
+  .scale-medium main button,
+  .scale-medium main input,
+  .scale-medium main select,
+  .scale-medium main textarea {
+    font-size: calc(0.75rem * 1.08) !important;
+    min-height: calc(2rem * 1.08);
+  }
+  .scale-large main button,
+  .scale-large main input,
+  .scale-large main select,
+  .scale-large main textarea {
+    font-size: calc(0.75rem * 1.18) !important;
+    min-height: calc(2rem * 1.18);
+  }
+  /* Масштаб иконок lucide внутри main */
+  .scale-medium main svg { transform: scale(1.08); transform-origin: center; }
+  .scale-large main svg { transform: scale(1.18); transform-origin: center; }
 }
 
 .header-scale-default { }
@@ -229,6 +272,56 @@ a[class*="rounded-lg"]:active {
 
 .header-scale-medium .sidebar-brand { transform: scale(1.1); transform-origin: left center; }
 .header-scale-large .sidebar-brand { transform: scale(1.22); transform-origin: left center; }
+
+/* Плавность обновления страниц — убираем белый флеш */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Улучшенные переходы для всех интерактивных элементов */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Кнопки не должны пропадать при нажатии */
+button:active {
+  opacity: 0.85;
+  transform: scale(0.96);
+  transition: transform 0.08s ease, opacity 0.08s ease !important;
+}
+button:not(:active) {
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* Pull-to-refresh — зона свайпа расширена (переопределение overscroll-behavior) */
+main {
+  overscroll-behavior-y: contain;
+}
+
+/* Анимированные переходы страниц без рывков */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.page-transition-exit {
+  opacity: 1;
+}
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Запретить автосохранение браузером в полях безопасности */
+.no-autosave {
+  autocomplete: off;
+}
 
 .marquee-track {
   display: inline-flex;

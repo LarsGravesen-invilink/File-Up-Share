@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Upload } from 'lucide-react';
+import { Menu, Upload, Plus, FolderPlus } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { InfoPage } from './pages/InfoPage';
 import { CreateSharePage } from './pages/CreateSharePage';
@@ -27,6 +27,14 @@ const pageTitles: Record<Page, string> = {
   'security': 'Безопасность',
   'telegram': 'Telegram бот',
   'about': 'О панели',
+};
+
+// Нижняя кнопка быстрого действия для каждой страницы
+const pageActionButton: Partial<Record<Page, { label: string; icon: React.ReactNode; gradient: string; target: Page }>> = {
+  'my-shares': { label: 'Новая раздача', icon: <FolderPlus className="h-4 w-4" />, gradient: 'from-emerald-500 to-cyan-500', target: 'create-share' },
+  'my-uploads': { label: 'Новая загрузка', icon: <Plus className="h-4 w-4" />, gradient: 'from-blue-500 to-violet-500', target: 'create-upload' },
+  'received': { label: 'Новая загрузка', icon: <Plus className="h-4 w-4" />, gradient: 'from-violet-500 to-cyan-500', target: 'create-upload' },
+  'info': { label: 'Создать раздачу', icon: <FolderPlus className="h-4 w-4" />, gradient: 'from-cyan-500 to-violet-500', target: 'create-share' },
 };
 
 interface Props {
@@ -159,19 +167,41 @@ export function Panel({
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-4 lg:p-6 lg:pb-6">
-          <AnimatePresence mode="wait">
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={page}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               {renderPage()}
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Нижняя кнопка быстрого действия — только на мобильных */}
+        <AnimatePresence>
+          {pageActionButton[page] && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 lg:hidden"
+            >
+              <button
+                onClick={() => setPage(pageActionButton[page]!.target)}
+                className={`btn-glow flex items-center gap-2.5 rounded-full bg-gradient-to-r ${pageActionButton[page]!.gradient} px-6 py-3 text-sm font-semibold text-white shadow-2xl active:scale-95 active:opacity-85`}
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
+              >
+                {pageActionButton[page]!.icon}
+                {pageActionButton[page]!.label}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <footer className={`relative z-30 flex-shrink-0 border-t backdrop-blur-xl ${isLight ? 'border-black/5 bg-white/80' : 'border-white/3 bg-[#080c18]/90'}`}>
           <div className="overflow-hidden py-2 px-4 lg:px-6">
