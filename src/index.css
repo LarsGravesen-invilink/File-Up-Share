@@ -209,18 +209,16 @@ a[class*="rounded-lg"]:active {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* UI Scale — zoom работает только на десктопе, на мобильных отключён */
+/* UI Scale — десктоп: zoom; мобильные: font-size + transform-origin */
 .scale-default { zoom: 1; }
 .scale-medium { zoom: 1.08; }
 .scale-large { zoom: 1.18; }
 
 @media (max-width: 1024px) {
-  /* На мобильных и планшетах zoom убираем — h-screen должен быть ровно 100vh */
-  .scale-default,
-  .scale-medium,
-  .scale-large {
-    zoom: 1;
-  }
+  /* На мобильных zoom не работает — используем font-size масштабирование */
+  .scale-default { zoom: 1; font-size: 1rem; }
+  .scale-medium { zoom: 1; font-size: 1.08rem; }
+  .scale-large { zoom: 1; font-size: 1.18rem; }
 }
 
 .header-scale-default { }
@@ -242,9 +240,13 @@ a[class*="rounded-lg"]:active {
   -moz-user-select: none;
   user-select: none;
 }
-.no-select img,
-.no-select video {
+.no-select img {
   pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.no-select video {
+  /* pointer-events остаётся авто — иначе блокируются кнопки плеера */
   -webkit-user-drag: none;
   user-select: none;
 }

@@ -75,7 +75,16 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
+    <div
+      className="flex h-screen flex-col overflow-hidden"
+      style={{
+        background: theme.bg,
+        color: theme.text,
+        '--page-text': theme.text,
+        '--page-text-muted': theme.textMuted,
+        '--page-accent': theme.accent,
+      } as React.CSSProperties}
+    >
       <div className="noise-bg" style={{ opacity: theme.dark ? 0.03 : 0.015 }} />
 
       <header className="relative z-30 flex-shrink-0 backdrop-blur-xl" style={{ borderBottom: '1px solid ' + theme.borderColor, background: theme.dark ? theme.bg + 'e6' : theme.bg + 'e6' }}>

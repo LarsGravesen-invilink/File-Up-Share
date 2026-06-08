@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Check, Eye, EyeOff, Type } from 'lucide-react';
+import { Palette, Check, Eye, EyeOff, Type, Save, Loader2, CheckCircle } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings } from '../../types';
 import { themes } from '../../themes';
@@ -12,6 +12,22 @@ interface Props {
 
 export function DesignPage({ settings, onUpdate }: Props) {
   const [confirmTheme, setConfirmTheme] = useState<string | null>(null);
+
+  // Локальный стейт для рекламного блока
+  const [adEnabled, setAdEnabled] = useState(settings.adEnabled);
+  const [adText, setAdText] = useState(settings.adText);
+  const [adSaving, setAdSaving] = useState(false);
+  const [adSaved, setAdSaved] = useState(false);
+
+  const adHasChanges = adEnabled !== settings.adEnabled || adText !== settings.adText;
+
+  const handleAdSave = async () => {
+    setAdSaving(true);
+    await onUpdate({ adEnabled, adText });
+    setAdSaving(false);
+    setAdSaved(true);
+    setTimeout(() => setAdSaved(false), 2000);
+  };
 
   const applyTheme = (id: string) => {
     onUpdate({ pageTheme: id });
@@ -89,19 +105,35 @@ export function DesignPage({ settings, onUpdate }: Props) {
                 <Type className="h-3.5 w-3.5" />
                 Рекламный блок
               </div>
-              <Toggle checked={settings.adEnabled} onChange={v => onUpdate({ adEnabled: v })} />
+              <Toggle checked={adEnabled} onChange={v => { setAdEnabled(v); }} />
             </div>
-            {settings.adEnabled && (
+            {adEnabled && (
               <>
                 <textarea
-                  value={settings.adText}
-                  onChange={e => onUpdate({ adText: e.target.value })}
+                  value={adText}
+                  onChange={e => setAdText(e.target.value)}
                   placeholder="Текст (ссылки станут кликабельными)"
                   rows={2}
                   className="mt-3 w-full resize-none rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/15 outline-none focus:border-cyan-500/30"
                 />
                 <p className="mt-1 text-[10px] text-white/15">Отображается внизу публичных страниц. Ссылки автоматически кликабельны.</p>
               </>
+            )}
+            {adHasChanges && (
+              <button
+                onClick={handleAdSave}
+                disabled={adSaving}
+                className="btn-glow mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/15 transition hover:shadow-cyan-500/25 disabled:opacity-30"
+              >
+                {adSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : adSaved ? (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {adSaved ? 'Сохранено' : 'Сохранить'}
+              </button>
             )}
           </div>
         </div>

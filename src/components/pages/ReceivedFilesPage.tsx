@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileDown, Download, Trash2, Eye, MessageSquare, FileIcon, Image, Film, Music } from 'lucide-react';
+import { FileDown, Download, Trash2, Eye, MessageSquare, FileIcon, Image, Film, Music, AlertTriangle } from 'lucide-react';
 import type { ReceivedFile } from '../../types';
 import { formatBytes, formatDateTime } from '../../helpers';
 import * as api from '../../api';
@@ -17,6 +18,15 @@ function getFileIcon(type: string) {
 }
 
 export function ReceivedFilesPage({ files, onRemove }: Props) {
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      onRemove(deleteTarget);
+      setDeleteTarget(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <motion.div
@@ -72,7 +82,7 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
                   )}
                 </div>
 
-                <div className="flex flex-shrink-0 gap-1">
+                <div className="flex flex-shrink-0 gap-1.5">
                   <a
                     href={api.getReceivedViewUrl(file.id)}
                     target="_blank"
@@ -80,21 +90,21 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
                     className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-violet-400"
                     title="Посмотреть"
                   >
-                    <Eye className="h-3.5 w-3.5" />
+                    <Eye className="h-4 w-4" />
                   </a>
                   <a
                     href={api.getReceivedDownloadUrl(file.id)}
                     className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-white/5 hover:text-cyan-400"
                     title="Скачать"
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Download className="h-4 w-4" />
                   </a>
                   <button
-                    onClick={() => onRemove(file.id)}
-                    className="rounded-lg p-2 text-white/20 transition active:scale-90 hover:bg-red-500/10 hover:text-red-400"
+                    onClick={() => setDeleteTarget(file.id)}
+                    className="rounded-lg p-2.5 text-white/30 transition active:scale-90 hover:bg-red-500/15 hover:text-red-400"
                     title="Удалить"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
               </div>
@@ -102,6 +112,47 @@ export function ReceivedFilesPage({ files, onRemove }: Props) {
           ))}
         </AnimatePresence>
       )}
+
+      {/* Модальное подтверждение удаления */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="glass w-full max-w-sm rounded-2xl p-6"
+            >
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-white">Удалить файл?</h3>
+              </div>
+              <p className="mb-5 text-xs text-white/40">Файл будет удалён без возможности восстановления.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 py-2.5 text-xs font-medium text-white transition active:scale-95"
+                >
+                  Удалить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

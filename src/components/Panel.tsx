@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Upload } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -65,6 +65,41 @@ export function Panel({
   const setPage = (p: Page) => { setPageState(p); localStorage.setItem('fus_page', p); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Pull-to-refresh на смартфоне
+  const pullRef = useRef<{ startY: number; pulling: boolean }>({ startY: 0, pulling: false });
+  const [pullProgress, setPullProgress] = useState(0);
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+    const onTouchStart = (e: TouchEvent) => {
+      if (mainEl.scrollTop === 0) {
+        pullRef.current = { startY: e.touches[0].clientY, pulling: true };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pullRef.current.pulling) return;
+      const dy = e.touches[0].clientY - pullRef.current.startY;
+      if (dy > 0 && mainEl.scrollTop === 0) {
+        setPullProgress(Math.min(dy / 80, 1));
+      }
+    };
+    const onTouchEnd = () => {
+      if (pullRef.current.pulling && pullProgress >= 1) {
+        window.location.reload();
+      }
+      pullRef.current.pulling = false;
+      setPullProgress(0);
+    };
+    mainEl.addEventListener('touchstart', onTouchStart, { passive: true });
+    mainEl.addEventListener('touchmove', onTouchMove, { passive: true });
+    mainEl.addEventListener('touchend', onTouchEnd);
+    return () => {
+      mainEl.removeEventListener('touchstart', onTouchStart);
+      mainEl.removeEventListener('touchmove', onTouchMove);
+      mainEl.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [pullProgress]);
+
   const uiScaleClass = useMemo(() => {
     if (settings.uiScale === 'medium') return 'scale-medium';
     if (settings.uiScale === 'large') return 'scale-large';
@@ -77,7 +112,7 @@ export function Panel({
     return 'header-scale-default';
   }, [settings.headerScale]);
 
-  const marqueeText = `${settings.name} · v 1.0.1 · by LarsGravesen | invilink · `;
+  const marqueeText = `${settings.name} · by LarsGravesen | invilink · `;
   const marqueeContent = Array(12).fill(marqueeText).join('');
 
   const renderPage = () => {
@@ -144,7 +179,7 @@ export function Panel({
               </button>
               <div>
                 <h1 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{pageTitles[page]}</h1>
-                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/20'}`}>{settings.name} · v 1.0.1</p>
+                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/20'}`}>{settings.name}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -160,6 +195,13 @@ export function Panel({
         </header>
 
         <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-4 lg:p-6 lg:pb-6">
+          {pullProgress > 0 && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none" style={{ opacity: pullProgress }}>
+              <div className={`mt-2 flex h-8 w-8 items-center justify-center rounded-full ${isLight ? 'bg-white shadow-md' : 'bg-white/10'}`}>
+                <svg className={`h-4 w-4 ${isLight ? 'text-cyan-500' : 'text-cyan-400'}`} style={{ transform: `rotate(${pullProgress * 360}deg)`, transition: 'transform 0.1s' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={page}
