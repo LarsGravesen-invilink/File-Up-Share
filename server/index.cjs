@@ -203,7 +203,6 @@ function pollBotCommands() {
           tgApi('deleteMessage', { chat_id: cb.message.chat.id, message_id: cb.message.message_id });
           tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: 'Удалено' });
         } else if (cbData === 'cmd_hide') {
-          if (config.botNotifyService === false) return;
           config.stealthEnabled = true;
           sessions = {}; saveSess(); save();
           tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: '🔒 Панель скрыта' });
@@ -215,7 +214,6 @@ function pollBotCommands() {
           });
           log('Stealth ON (кнопка)', 'warn');
         } else if (cbData === 'cmd_show') {
-          if (config.botNotifyService === false) return;
           config.stealthEnabled = false; save();
           tgApi('answerCallbackQuery', { callback_query_id: cb.id, text: '🔓 Панель восстановлена' });
           tgApi('editMessageText', {
@@ -236,8 +234,6 @@ function pollBotCommands() {
         var cmd = msg.text.trim().split('@')[0].toLowerCase();
         var chatId = msg.chat.id;
         if (cmd === '/hide') {
-          // Проверяем, включена ли функция бота слушать /hide /show
-          if (config.botNotifyService === false) return;
           config.stealthEnabled = true;
           sessions = {}; saveSess(); save();
           var hideText = '🔒  <b>ПАНЕЛЬ СКРЫТА</b>\n\n' +
@@ -253,7 +249,6 @@ function pollBotCommands() {
           });
           log('Stealth ON (бот)', 'warn');
         } else if (cmd === '/show') {
-          if (config.botNotifyService === false) return;
           config.stealthEnabled = false; save();
           var showText = '🔓  <b>ПАНЕЛЬ ВОССТАНОВЛЕНА</b>\n\n' +
             '✅  Режим невидимки отключён\n' +
@@ -445,17 +440,6 @@ function cleanup() {
       try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch (e) {}
       return false;
     }
-    // Если срок не истёк но все файлы раздачи удалены с диска вручную — удаляем страницу сразу
-    if (s.files && s.files.length > 0) {
-      var allMissing = s.files.every(function(f) {
-        return !fs.existsSync(path.join(SHARES_DIR, s.id, f.storedName || f.name));
-      });
-      if (allMissing) {
-        try { fs.rmSync(path.join(SHARES_DIR, s.id), { recursive: true, force: true }); } catch (e) {}
-        log('Раздача удалена: файлы отсутствуют на диске — ' + s.title, 'warn');
-        return false;
-      }
-    }
     return true;
   });
   uploads = uploads.filter(function(u) {
@@ -468,15 +452,6 @@ function cleanup() {
       return true;
     });
   }
-  // Удаляем принятые файлы, физически отсутствующие на диске
-  received = received.filter(function(r) {
-    var fp = path.join(RECEIVED_DIR, r.storedName);
-    if (!fs.existsSync(fp)) {
-      log('Принятый файл удалён: отсутствует на диске — ' + r.name, 'warn');
-      return false;
-    }
-    return true;
-  });
   save();
 }
 
