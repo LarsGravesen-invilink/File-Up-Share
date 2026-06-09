@@ -26,15 +26,13 @@ export function InfoPage({ stats, settings, logs, onNavigate, onRestart }: Props
 
   const currentTime = useCurrentTime(settings.timezone);
 
-  const quotaMB = settings.quotaEnabled && settings.quotaValue > 0
-    ? (settings.quotaUnit === 'GB' ? settings.quotaValue * 1024 : settings.quotaValue)
-    : stats.totalSpaceMB;
+  const diskUsedPct = stats.diskTotalMB > 0 ? Math.round(stats.usedSpaceMB / stats.diskTotalMB * 100) : 0;
 
   const cards = [
     { value: stats.filesInShare.toString(), unit: 'Файлов', label: 'В раздаче', emoji: '📤', page: 'my-shares' as Page, gradient: 'from-emerald-500 to-green-600' },
     { value: stats.uploadPages.toString(), unit: 'Страниц', label: 'Загрузки', emoji: '📥', page: 'my-uploads' as Page, gradient: 'from-blue-500 to-cyan-600' },
     { value: stats.receivedFiles.toString(), unit: 'Файлов', label: 'Принято', emoji: '📎', page: 'received' as Page, gradient: 'from-violet-500 to-purple-600' },
-    { value: formatSize(stats.usedSpaceMB), unit: formatSizeUnit(stats.usedSpaceMB), label: `из ${formatSize(quotaMB)} ${formatSizeUnit(quotaMB)}`, emoji: '💾', page: 'settings' as Page, gradient: 'from-orange-500 to-amber-600' },
+    { value: formatSize(stats.usedSpaceMB), unit: formatSizeUnit(stats.usedSpaceMB), label: `из ${formatSize(stats.diskTotalMB)} ${formatSizeUnit(stats.diskTotalMB)} диска`, emoji: '💾', page: 'info' as Page, gradient: 'from-orange-500 to-amber-600' },
   ];
 
   const runCheck = async () => {
@@ -200,6 +198,26 @@ export function InfoPage({ stats, settings, logs, onNavigate, onRestart }: Props
             <div className="mt-1 flex justify-between text-[11px] text-white/20">
               <span>{stats.ramUsed.toFixed(2)} ГБ / {stats.ramTotal} ГБ</span>
               <span>Свободно: {(stats.ramTotal - stats.ramUsed).toFixed(2)} ГБ</span>
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <span className="text-sm text-white/70">Хранилище</span>
+                <span className="ml-2 text-[11px] text-white/25">файлы сервиса</span>
+              </div>
+              <span className="text-sm font-semibold text-orange-400 tabular-nums">{diskUsedPct}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400"
+                animate={{ width: `${diskUsedPct}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+            <div className="mt-1 flex justify-between text-[11px] text-white/20">
+              <span>Занято сервисом: {formatSize(stats.usedSpaceMB)} {formatSizeUnit(stats.usedSpaceMB)}</span>
+              <span>Всего на VPS: {formatSize(stats.diskTotalMB)} {formatSizeUnit(stats.diskTotalMB)}</span>
             </div>
           </div>
         </div>

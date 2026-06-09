@@ -428,6 +428,7 @@ function stats() {
     receivedFiles: received.length,
     usedSpaceMB: Math.round(ss / 1048576),
     totalSpaceMB: diskTotal,
+    diskTotalMB: diskTotal,
     ip: ip, hostname: os.hostname(),
     cpu: c[0] ? c[0].model : 'Unknown', cpuCores: c.length, cpuPercent: cpuUsage(),
     ramTotal: Math.round(tm / 1073741824 * 10) / 10,
@@ -807,7 +808,51 @@ app.get('/api/file/:dir/:filename', function(req, res) {
   var fp = path.join(SHARES_DIR, req.params.dir, req.params.filename);
   if (!fs.existsSync(fp)) fp = path.join(RECEIVED_DIR, req.params.filename);
   if (!fs.existsSync(fp)) return res.status(404).send('Not found');
-  res.sendFile(path.resolve(fp));
+
+  var stat = fs.statSync(fp);
+  var fileSize = stat.size;
+  var ext = path.extname(req.params.filename).toLowerCase();
+  var videoExts = ['.mp4', '.webm', '.ogg', '.mkv', '.mov', '.avi', '.m4v'];
+  var isVideo = videoExts.indexOf(ext) !== -1;
+
+  if (isVideo) {
+    var mimeMap = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.ogg': 'video/ogg', '.mkv': 'video/x-matroska', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.m4v': 'video/mp4' };
+    var mimeType = mimeMap[ext] || 'video/mp4';
+    var rangeHeader = req.headers['range'];
+
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
+    if (rangeHeader) {
+      var parts = rangeHeader.replace(/bytes=/, '').split('-');
+      var start = parseInt(parts[0], 10);
+      var end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      // Clamp chunk to 2MB for smooth streaming
+      var chunkSize = 2 * 1024 * 1024;
+      if (end - start + 1 > chunkSize) end = start + chunkSize - 1;
+      if (end >= fileSize) end = fileSize - 1;
+      var contentLength = end - start + 1;
+      res.writeHead(206, {
+        'Content-Range': 'bytes ' + start + '-' + end + '/' + fileSize,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': contentLength,
+        'Content-Type': mimeType,
+        'Cache-Control': 'public, max-age=3600',
+      });
+      var stream = fs.createReadStream(fp, { start: start, end: end });
+      stream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': mimeType,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=3600',
+      });
+      fs.createReadStream(fp).pipe(res);
+    }
+  } else {
+    res.sendFile(path.resolve(fp));
+  }
 });
 
 app.get('/api/download/:dir/:filename', function(req, res) {

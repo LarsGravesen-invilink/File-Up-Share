@@ -1,10 +1,9 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Settings, Upload, Moon, Sun, HardDrive, Maximize, Type,
+  Settings, Upload, Moon, Sun, Maximize, Type,
   Clock, Globe
 } from 'lucide-react';
-import { Toggle } from '../Toggle';
 import type { Settings as SettingsType } from '../../types';
 
 const timezones = [
@@ -126,69 +125,6 @@ export function SettingsPage({ settings, onUpdate }: Props) {
           >
             <Sun className="h-4 w-4" /> Светлая
           </button>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass-card rounded-xl p-5"
-      >
-        <h4 className="mb-4 text-xs font-medium text-white/40">Хранилище</h4>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 flex items-center gap-1 text-xs text-white/30">
-              <HardDrive className="h-3 w-3" /> Путь раздач
-            </label>
-            <input
-              value={settings.storagePath}
-              onChange={e => onUpdate({ storagePath: e.target.value })}
-              className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white/50 outline-none focus:border-cyan-500/30"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 flex items-center gap-1 text-xs text-white/30">
-              <HardDrive className="h-3 w-3" /> Путь загрузок
-            </label>
-            <input
-              value={settings.receivedPath}
-              onChange={e => onUpdate({ receivedPath: e.target.value })}
-              className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs font-mono text-white/50 outline-none focus:border-cyan-500/30"
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg bg-white/3 px-4 py-3">
-            <span className="text-xs text-white/40">Квота хранилища</span>
-            <Toggle checked={settings.quotaEnabled} onChange={v => onUpdate({ quotaEnabled: v })} />
-          </div>
-
-          {settings.quotaEnabled && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-xs text-white/30">Размер</label>
-                <input
-                  type="number"
-                  value={settings.quotaValue}
-                  onChange={e => onUpdate({ quotaValue: Number(e.target.value) })}
-                  onFocus={e => e.currentTarget.select()}
-                  min={1}
-                  className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs text-white/30">Единица</label>
-                <select
-                  value={settings.quotaUnit}
-                  onChange={e => onUpdate({ quotaUnit: e.target.value })}
-                  className="w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/30"
-                >
-                  <option value="MB">МБ</option>
-                  <option value="GB">ГБ</option>
-                </select>
-              </div>
-            </div>
-          )}
         </div>
       </motion.div>
 

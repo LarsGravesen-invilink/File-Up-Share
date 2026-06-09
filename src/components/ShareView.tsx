@@ -149,7 +149,7 @@ export function ShareView({ encoded }: Props) {
             key="content"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4 no-select"
+            className="space-y-4"
           >
             {share.cover && (
               <div className="overflow-hidden rounded-xl">
@@ -194,9 +194,11 @@ export function ShareView({ encoded }: Props) {
                       <video
                         src={api.getFileUrl(share.id, currentVisual.storedName)}
                         controls
-                        preload="metadata"
+                        preload="auto"
+                        playsInline
                         controlsList={!canDownload ? 'nodownload' : ''}
                         className="h-full w-full"
+                        style={{ pointerEvents: 'auto' }}
                         onContextMenu={!canDownload ? (e) => e.preventDefault() : undefined}
                       />
                     </div>

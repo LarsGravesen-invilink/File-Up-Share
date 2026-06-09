@@ -54,6 +54,7 @@ export interface Stats {
   receivedFiles: number;
   usedSpaceMB: number;
   totalSpaceMB: number;
+  diskTotalMB: number;
   ip: string;
   hostname: string;
   cpu: string;
