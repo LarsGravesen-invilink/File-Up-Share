@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Lock, User, Loader2, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 
 interface Props {
   firstRun: boolean;
@@ -15,6 +15,22 @@ export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const doRegister = async () => {
+    setShowConfirm(false);
+    setLoading(true);
+    setError('');
+    try {
+      const success = await onRegister(user.trim(), pass);
+      if (!success) {
+        setError('Ошибка создания аккаунта');
+      }
+    } catch {
+      setError('Ошибка соединения с сервером');
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,19 +47,18 @@ export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
       return;
     }
 
+    if (firstRun) {
+      setShowConfirm(true);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      let success: boolean;
-      if (firstRun) {
-        success = await onRegister(user.trim(), pass);
-      } else {
-        success = await onLogin(user.trim(), pass);
-      }
-
+      const success = await onLogin(user.trim(), pass);
       if (!success) {
-        setError(firstRun ? 'Ошибка создания аккаунта' : 'Неверный логин или пароль');
+        setError('Неверный логин или пароль');
       }
     } catch {
       setError('Ошибка соединения с сервером');
@@ -184,6 +199,50 @@ export function Auth({ firstRun, onLogin, onRegister, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Модальное окно подтверждения при первом создании аккаунта */}
+      <AnimatePresence>
+        {showConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="glass w-full max-w-sm rounded-2xl p-6"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/20">
+                  <AlertTriangle className="h-5 w-5 text-amber-400" />
+                </div>
+                <h3 className="text-base font-semibold text-white">Внимание!</h3>
+              </div>
+              <p className="mb-5 text-sm text-white/60 leading-relaxed">
+                Запомните данные для входа! Они потребуются при повторном входе.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowConfirm(false); }}
+                  className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition hover:bg-white/5 active:scale-95"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={doRegister}
+                  className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-500/30 active:scale-95"
+                >
+                  Применить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

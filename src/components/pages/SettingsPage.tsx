@@ -78,14 +78,14 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               <button
                 onClick={handleSaveName}
                 title="Сохранить название"
-                className={`flex-shrink-0 rounded-lg transition active:scale-90 active:opacity-70 ${
+                className={`flex-shrink-0 rounded-lg transition active:scale-90 active:brightness-90 ${
                   nameSaved
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-white/5 text-white/40 hover:bg-cyan-500/15 hover:text-cyan-400'
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                    : 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:brightness-110'
                 }`}
                 style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                {nameSaved ? <Check className="h-4 w-4" /> : <span className="text-xs font-medium">OK</span>}
+                {nameSaved ? <Check className="h-4 w-4" /> : <span className="text-xs font-semibold">OK</span>}
               </button>
             </div>
           </div>
@@ -103,7 +103,7 @@ export function SettingsPage({ settings, onUpdate }: Props) {
               </div>
               <button
                 onClick={() => logoRef.current?.click()}
-                className="rounded-lg border border-white/8 bg-white/3 px-4 py-2 text-xs text-white/40 transition hover:bg-white/5"
+                className="rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:shadow-cyan-500/35 hover:brightness-110 active:scale-95 active:brightness-90"
               >
                 Загрузить
               </button>

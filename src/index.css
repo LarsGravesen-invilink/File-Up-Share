@@ -462,3 +462,26 @@ main {
 .public-root textarea::placeholder {
   color: color-mix(in srgb, var(--theme-text-muted, #94a3b8) 50%, transparent) !important;
 }
+
+/* ── Блокировка выделения и копирования текста ── */
+/* Применяем ко всему приложению: панель, лендинг, публичные страницы */
+#root {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+/* Возвращаем выделение только для полей ввода, кнопок, ссылок и плееров */
+#root input,
+#root textarea,
+#root select,
+#root a,
+#root button,
+#root [role="button"],
+#root audio,
+#root video,
+#root audio *,
+#root video * {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  user-select: auto;
+}

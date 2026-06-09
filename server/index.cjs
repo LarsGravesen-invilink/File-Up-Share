@@ -611,10 +611,28 @@ app.post('/api/change-credentials', auth, function(req, res) {
 
 app.patch('/api/config', auth, function(req, res) {
   var hadBot = config.botEnabled;
+  var hadToken = config.botToken;
+  var hadChatId = config.botChatId;
   config = Object.assign({}, config, req.body);
   save();
+  var tokenChanged = req.body.botToken && req.body.botToken !== hadToken;
+  var chatIdChanged = req.body.botChatId && req.body.botChatId !== hadChatId;
+  var botJustEnabled = config.botEnabled && !hadBot;
   if (config.botEnabled !== hadBot || req.body.botToken) {
     startBotCommands();
+  }
+  // Send welcome message only once when bot is first connected or token/chatId changes
+  if (config.botEnabled && config.botToken && config.botChatId) {
+    if (botJustEnabled || tokenChanged || chatIdChanged) {
+      setTimeout(function() {
+        tgApi('sendMessage', {
+          chat_id: config.botChatId,
+          text: '✅  <b>ВЫ ДОБАВИЛИ БОТА</b>',
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '🗑 Стереть', callback_data: 'delete_msg' }]] }
+        });
+      }, 500);
+    }
   }
   res.json(config);
 });
