@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Upload } from 'lucide-react';
+import { Menu, Upload, RefreshCw } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { InfoPage } from './pages/InfoPage';
 import { CreateSharePage } from './pages/CreateSharePage';
@@ -29,8 +29,6 @@ const pageTitles: Record<Page, string> = {
   'about': 'О панели',
 };
 
-
-
 interface Props {
   settings: Settings;
   stats: Stats;
@@ -49,13 +47,17 @@ interface Props {
   onChangeCredentials: (login: string, password: string) => Promise<boolean>;
   onRestart: () => void;
   onLogout: () => void;
+  onRefresh: () => Promise<void>;
 }
+
+const PULL_THRESHOLD = 64; // px до срабатывания
+const PULL_MAX = 90;       // максимальное визуальное смещение
 
 export function Panel({
   settings, stats, shares, uploads, received, logs,
   onUpdateSettings, onAddShare, onRemoveShare, onExtendShare,
   onAddUpload, onExtendUpload, onRemoveUpload, onRemoveReceived,
-  onChangeCredentials, onRestart, onLogout,
+  onChangeCredentials, onRestart, onLogout, onRefresh,
 }: Props) {
   const [page, setPageState] = useState<Page>(() => {
     const saved = localStorage.getItem('fus_page');
@@ -66,6 +68,42 @@ export function Panel({
   });
   const setPage = (p: Page) => { setPageState(p); localStorage.setItem('fus_page', p); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Pull-to-refresh state
+  const [pullY, setPullY] = useState(0);
+  const [pulling, setPulling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (mainRef.current && mainRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      setPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!pulling || refreshing) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) {
+      // Плавное затухание при растяжении
+      const clamped = Math.min(PULL_MAX, dy * 0.45);
+      setPullY(clamped);
+    }
+  }, [pulling, refreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!pulling) return;
+    setPulling(false);
+    if (pullY >= PULL_THRESHOLD * 0.45) {
+      setRefreshing(true);
+      setPullY(PULL_THRESHOLD * 0.45);
+      try { await onRefresh(); } catch {}
+      setRefreshing(false);
+    }
+    setPullY(0);
+  }, [pulling, pullY, onRefresh]);
 
   const uiScaleClass = useMemo(() => {
     if (settings.uiScale === 'medium') return 'scale-medium';
@@ -112,9 +150,10 @@ export function Panel({
   };
 
   const isLight = settings.panelTheme === 'light';
+  const pullProgress = Math.min(1, pullY / (PULL_THRESHOLD * 0.45));
 
   return (
-    <div className={`relative flex h-dvh flex-col overflow-hidden ${isLight ? 'theme-light bg-[#f0f1f5]' : 'bg-[#080c18]'} ${uiScaleClass} ${headerScaleClass}`}>
+    <div className={`panel-root relative flex flex-col overflow-hidden ${isLight ? 'theme-light bg-[#f0f1f5]' : 'bg-[#080c18]'} ${uiScaleClass} ${headerScaleClass}`}>
       <div className="noise-bg" />
 
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -134,7 +173,7 @@ export function Panel({
         isLight={isLight}
       />
 
-      <div className="flex h-full flex-col lg:pl-[260px]">
+      <div className="flex min-h-0 flex-1 flex-col lg:pl-[260px]">
         <header className={`relative z-30 flex-shrink-0 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-white/80' : 'border-white/5 bg-[#080c18]/90'}`}>
           <div className="flex items-center justify-between px-4 py-3 lg:px-6">
             <div className="flex items-center gap-3 panel-header-inner">
@@ -161,7 +200,24 @@ export function Panel({
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
+        <main
+          ref={mainRef}
+          className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-none p-4 lg:p-6"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Pull-to-refresh индикатор */}
+          <div
+            className="pointer-events-none flex items-center justify-center overflow-hidden transition-all duration-200"
+            style={{ height: pullY > 0 || refreshing ? `${refreshing ? 36 : pullY}px` : 0, opacity: refreshing ? 1 : pullProgress }}
+          >
+            <RefreshCw
+              className={`h-5 w-5 text-cyan-400 transition-transform duration-200 ${refreshing ? 'animate-spin' : ''}`}
+              style={{ transform: `rotate(${pullProgress * 180}deg)` }}
+            />
+          </div>
+
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={page}
@@ -174,8 +230,6 @@ export function Panel({
             </motion.div>
           </AnimatePresence>
         </main>
-
-
 
         <footer className={`relative z-30 flex-shrink-0 border-t backdrop-blur-xl ${isLight ? 'border-black/5 bg-white/80' : 'border-white/3 bg-[#080c18]/90'}`}>
           <div className="overflow-hidden py-2 px-4 lg:px-6">

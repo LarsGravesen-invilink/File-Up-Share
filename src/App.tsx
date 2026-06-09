@@ -102,6 +102,7 @@ export default function App() {
           onChangeCredentials={store.changeCredentials}
           onRestart={store.restartPanel}
           onLogout={handleLogout}
+          onRefresh={store.loadState}
         />
       )}
     </AnimatePresence>

@@ -43,6 +43,7 @@ const defaultStats: Stats = {
   receivedFiles: 0,
   usedSpaceMB: 0,
   totalSpaceMB: 51200,
+  diskTotalMB: 51200,
   ip: '—',
   hostname: '—',
   cpu: '—',
