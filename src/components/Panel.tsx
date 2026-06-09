@@ -184,8 +184,7 @@ export function Panel({
                 <Menu className="h-5 w-5" />
               </button>
               <div>
-                <h1 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{pageTitles[page]}</h1>
-                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/20'}`}>{settings.name} · v 1.0.1</p>
+                <h1 className={`text-base font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{pageTitles[page]}</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
