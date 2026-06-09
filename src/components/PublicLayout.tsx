@@ -65,7 +65,7 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
 
   if (expired) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center px-6 text-center" style={{ background: theme.bg }}>
+      <div className="public-root flex flex-col items-center justify-center px-6 text-center" style={{ background: theme.bg }}>
         <div className="noise-bg" />
         <AlertTriangle className="mb-4 h-12 w-12" style={{ color: theme.accent, opacity: 0.6 }} />
         <h2 className="mb-2 text-lg font-semibold" style={{ color: theme.text }}>Срок действия истёк</h2>
@@ -74,8 +74,11 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
     );
   }
 
+  const marqueeText = 'Создано в FileUpShare | Lars Gravesen | invilink© · ';
+  const marqueeContent = Array(10).fill(marqueeText).join('');
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
+    <div className="public-root flex flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
       <div className="noise-bg" style={{ opacity: theme.dark ? 0.03 : 0.015 }} />
 
       <header className="relative z-30 flex-shrink-0 backdrop-blur-xl" style={{ borderBottom: '1px solid ' + theme.borderColor, background: theme.dark ? theme.bg + 'e6' : theme.bg + 'e6' }}>
@@ -100,7 +103,7 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 overflow-y-auto">
+      <main className="relative z-10 min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </div>
@@ -113,6 +116,15 @@ export function PublicLayout({ name, logo, expiresAt, hideLifetime, adEnabled, a
           </div>
         </footer>
       )}
+
+      <div className="relative z-30 flex-shrink-0" style={{ borderTop: '1px solid ' + theme.borderColor, background: theme.dark ? theme.bg + 'e6' : theme.bg + 'e6' }}>
+        <div className="overflow-hidden py-2 px-4">
+          <div className="marquee-track text-[10px] tracking-widest" style={{ color: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+            <span>{marqueeContent}</span>
+            <span>{marqueeContent}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
