@@ -210,7 +210,8 @@ a[class*="rounded-lg"]:active {
 }
 
 /* Корневой контейнер панели — точно вписывается в видимую область браузера */
-.panel-root {
+.panel-root,
+.auth-root {
   height: 100svh;
   width: 100%;
 }

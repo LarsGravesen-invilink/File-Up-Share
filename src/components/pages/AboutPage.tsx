@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Info, ExternalLink, Upload, Heart, Code2 } from 'lucide-react';
+import { Info, ExternalLink, Upload, Heart, Code2, Coffee } from 'lucide-react';
 
 export function AboutPage() {
   return (
@@ -61,7 +61,7 @@ export function AboutPage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="grid grid-cols-2 gap-3"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
       >
         <a
           href="https://github.com/LarsGravesen-invilink/File-Up-Share"
@@ -80,6 +80,15 @@ export function AboutPage() {
         >
           <ExternalLink className="h-4 w-4" />
           Telegram
+        </a>
+        <a
+          href="https://pay.cloudtips.ru/p/6bba08e1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-glow flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-400/70 transition hover:bg-amber-500/10 hover:text-amber-400"
+        >
+          <Coffee className="h-4 w-4" />
+          Поддержать
         </a>
       </motion.div>
     </div>

@@ -64,15 +64,6 @@ export function Landing({ name, hidden, onEnter }: Props) {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="mb-2 text-[10px] tracking-widest text-white/30 uppercase sm:text-sm"
-          >
-            v 1.0.1
-          </motion.p>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mx-auto mb-8 max-w-md text-xs text-white/40 sm:mb-10 sm:text-base"
           >

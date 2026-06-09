@@ -202,7 +202,6 @@ export function Sidebar({ page, onNavigate, onLogout, open, onClose, name, logo,
             )}
             <div>
               <span className={`text-sm font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{name}</span>
-              <span className={`block text-[10px] ${isLight ? 'text-slate-400' : 'text-white/25'}`}>v 1.0.1</span>
             </div>
           </div>
           <button onClick={onClose} className={`rounded-lg p-1.5 transition-colors lg:hidden ${isLight ? 'text-slate-400 hover:bg-black/5' : 'text-white/30 hover:bg-white/5 hover:text-white/60'}`}>
