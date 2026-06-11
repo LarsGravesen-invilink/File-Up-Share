@@ -955,7 +955,14 @@ if (distPath) {
   });
 }
 
-app.listen(PORT, '0.0.0.0', function() {
+var server = app.listen(PORT, '0.0.0.0', function() {
   console.log('FileUpShare v' + CURRENT_VERSION + ' on port ' + PORT);
   log('Запуск v' + CURRENT_VERSION + ' на порту ' + PORT, 'success');
 });
+// Increase timeouts to support large file uploads (up to 10 GB)
+// Node.js default server.timeout is 0 (no timeout) in newer versions,
+// but headersTimeout defaults to 60s and keepAliveTimeout to 5s,
+// which can interrupt slow large-file uploads.
+server.timeout = 0;            // no socket inactivity timeout
+server.keepAliveTimeout = 0;   // no keep-alive timeout
+server.headersTimeout = 0;     // no headers timeout
