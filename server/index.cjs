@@ -807,8 +807,20 @@ app.post('/api/public/upload/:enc/verify', function(req, res) {
 });
 
 app.post('/api/public/upload/:enc/submit', function(req, res) {
+  var uploadStart = Date.now();
+  var contentLength = req.headers['content-length'] || 'unknown';
+  console.log('[UPLOAD] START content-length=' + contentLength + ' ip=' + (req.headers['x-real-ip'] || req.ip));
+  req.on('aborted', function() {
+    console.log('[UPLOAD] ABORTED by client after ' + (Date.now() - uploadStart) + 'ms');
+  });
+  req.on('error', function(e) {
+    console.log('[UPLOAD] REQ ERROR after ' + (Date.now() - uploadStart) + 'ms: ' + e.message);
+  });
   recvUp.single('file')(req, res, function(err) {
-    if (err) return res.status(400).json({ error: err.message || 'Upload error' });
+    if (err) {
+      console.log('[UPLOAD] MULTER ERROR after ' + (Date.now() - uploadStart) + 'ms: ' + err.message + ' code=' + err.code);
+      return res.status(400).json({ error: err.message || 'Upload error' });
+    }
     var id = did(req.params.enc);
     var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
     if (!u || !req.file) { if (req.file) try { fs.unlinkSync(req.file.path); } catch (e) {} return res.status(404).json({ error: 'Not found' }); }
