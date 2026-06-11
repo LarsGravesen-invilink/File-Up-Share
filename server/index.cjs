@@ -649,11 +649,14 @@ app.post('/api/shares', auth, function(req, res) {
   res.json({ ok: true, share: s });
 });
 
-app.post('/api/shares/:shareId/upload', auth, shareUp.array('files', 50), function(req, res) {
-  var files = (req.files || []).map(function(f) {
-    return { name: f.originalname, storedName: f.filename, size: f.size, type: f.mimetype };
+app.post('/api/shares/:shareId/upload', auth, function(req, res) {
+  shareUp.array('files', 50)(req, res, function(err) {
+    if (err) return res.status(400).json({ error: err.message || 'Upload error' });
+    var files = (req.files || []).map(function(f) {
+      return { name: f.originalname, storedName: f.filename, size: f.size, type: f.mimetype };
+    });
+    res.json({ ok: true, shareId: req.shareId, files: files });
   });
-  res.json({ ok: true, shareId: req.shareId, files: files });
 });
 
 app.delete('/api/shares/:id', auth, function(req, res) {
@@ -803,23 +806,26 @@ app.post('/api/public/upload/:enc/verify', function(req, res) {
   else res.status(401).json({ error: 'Wrong' });
 });
 
-app.post('/api/public/upload/:enc/submit', recvUp.single('file'), function(req, res) {
-  var id = did(req.params.enc);
-  var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
-  if (!u || !req.file) { if (req.file) try { fs.unlinkSync(req.file.path); } catch (e) {} return res.status(404).json({ error: 'Not found' }); }
-  var entry = {
-    id: crypto.randomBytes(8).toString('hex'),
-    name: req.file.originalname, storedName: req.file.filename,
-    size: req.file.size, type: req.file.mimetype,
-    receivedAt: Date.now(), uploadId: u.id, source: u.title,
-    comment: ((req.body || {}).comment || '').slice(0, 100)
-  };
-  received.unshift(entry);
-  u.usedUploads = (u.usedUploads || 0) + 1;
-  save();
-  log('Файл: ' + entry.name + ' ← ' + u.title, 'success');
-  botNotify('received', entry);
-  res.json({ ok: true, file: entry });
+app.post('/api/public/upload/:enc/submit', function(req, res) {
+  recvUp.single('file')(req, res, function(err) {
+    if (err) return res.status(400).json({ error: err.message || 'Upload error' });
+    var id = did(req.params.enc);
+    var u = uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
+    if (!u || !req.file) { if (req.file) try { fs.unlinkSync(req.file.path); } catch (e) {} return res.status(404).json({ error: 'Not found' }); }
+    var entry = {
+      id: crypto.randomBytes(8).toString('hex'),
+      name: req.file.originalname, storedName: req.file.filename,
+      size: req.file.size, type: req.file.mimetype,
+      receivedAt: Date.now(), uploadId: u.id, source: u.title,
+      comment: ((req.body || {}).comment || '').slice(0, 100)
+    };
+    received.unshift(entry);
+    u.usedUploads = (u.usedUploads || 0) + 1;
+    save();
+    log('Файл: ' + entry.name + ' ← ' + u.title, 'success');
+    botNotify('received', entry);
+    res.json({ ok: true, file: entry });
+  });
 });
 
 app.get('/api/file/:dir/:filename', function(req, res) {
@@ -955,6 +961,21 @@ if (distPath) {
   });
 }
 
+// Global error middleware - catches any unhandled Express errors (e.g. multer errors passed via next(err))
+app.use(function(err, req, res, next) {
+  console.error('Express error:', err.message);
+  if (!res.headersSent) res.status(500).json({ error: err.message || 'Server error' });
+});
+
+// Prevent Node.js from crashing on unhandled promise rejections or exceptions
+// (e.g. busboy/multer emitting errors when a client aborts a large upload)
+process.on('uncaughtException', function(err) {
+  console.error('Uncaught exception (ignored to keep server alive):', err.message);
+});
+process.on('unhandledRejection', function(reason) {
+  console.error('Unhandled rejection (ignored to keep server alive):', reason);
+});
+
 var server = app.listen(PORT, '0.0.0.0', function() {
   console.log('FileUpShare v' + CURRENT_VERSION + ' on port ' + PORT);
   log('Запуск v' + CURRENT_VERSION + ' на порту ' + PORT, 'success');
@@ -966,3 +987,4 @@ var server = app.listen(PORT, '0.0.0.0', function() {
 server.timeout = 0;            // no socket inactivity timeout
 server.keepAliveTimeout = 0;   // no keep-alive timeout
 server.headersTimeout = 0;     // no headers timeout
+server.requestTimeout = 0;     // no request timeout (Node.js 18+ default is 300s — kills large uploads)
