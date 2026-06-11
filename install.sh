@@ -178,6 +178,8 @@ server {
     listen 80;
     server_name ${DOMAIN};
     client_max_body_size 10G;
+    client_body_timeout 86400;
+    client_body_buffer_size 1m;
     location / {
         proxy_pass http://127.0.0.1:${NODE_PORT};
         proxy_http_version 1.1;
@@ -189,7 +191,9 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 86400;
         proxy_send_timeout 86400;
+        proxy_connect_timeout 86400;
         proxy_buffering off;
+        proxy_request_buffering off;
     }
 }
 NGXEOF
@@ -224,6 +228,8 @@ else
 server {
     listen 80 default_server;
     client_max_body_size 10G;
+    client_body_timeout 86400;
+    client_body_buffer_size 1m;
     location / {
         proxy_pass http://127.0.0.1:${NODE_PORT};
         proxy_http_version 1.1;
@@ -235,7 +241,9 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 86400;
         proxy_send_timeout 86400;
+        proxy_connect_timeout 86400;
         proxy_buffering off;
+        proxy_request_buffering off;
     }
 }
 NGXEOF
