@@ -13,7 +13,7 @@
 
 ## Установка
 
-[Инструкция по управлению](instruction.md)
+[Инструкция по управлению скоро будет](instruction.md)
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/install.sh)
