@@ -6,6 +6,7 @@ import { autolink } from '../utils/autolink';
 import { Download, Eye, Lock, Loader2, Volume2, ChevronLeft, ChevronRight, Film, Image } from 'lucide-react';
 import { formatBytes } from '../helpers';
 import * as api from '../api';
+import { applyPublicPageMeta } from '../utils/pageMeta';
 
 interface Props {
   encoded: string;
@@ -33,6 +34,11 @@ export function ShareView({ encoded }: Props) {
   useEffect(() => {
     loadShare();
   }, [encoded]);
+
+  useEffect(() => {
+    if (!config) return;
+    return applyPublicPageMeta(config.name, config.logo);
+  }, [config]);
 
   const loadShare = async () => {
     try {
