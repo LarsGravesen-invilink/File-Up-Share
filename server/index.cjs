@@ -905,23 +905,31 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.3';
+var CURRENT_VERSION = '1.0.2';
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 
 function checkVersion(cb) {
   var https = require('https');
-  https.get(VERSION_URL, function(resp) {
+  var req = https.get(VERSION_URL, function(resp) {
     var body = '';
     resp.on('data', function(c) { body += c; });
     resp.on('end', function() {
+      if (resp.statusCode !== 200) {
+        if (cb) cb(new Error('HTTP ' + resp.statusCode));
+        return;
+      }
       try {
         var j = JSON.parse(body);
-        cachedVersion = { version: j.version || CURRENT_VERSION, checked: Date.now() };
+        if (j.version) {
+          cachedVersion = { version: j.version, checked: Date.now() };
+        }
         if (cb) cb(null, cachedVersion);
       } catch(e) { if (cb) cb(e); }
     });
-  }).on('error', function(e) { if (cb) cb(e); });
+  });
+  req.setTimeout(10000, function() { req.destroy(); if (cb) cb(new Error('timeout')); });
+  req.on('error', function(e) { if (cb) cb(e); });
 }
 
 setInterval(function() { checkVersion(); }, 6 * 3600000);

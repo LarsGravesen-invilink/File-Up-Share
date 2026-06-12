@@ -153,7 +153,7 @@ export function Panel({
     return 'header-scale-default';
   }, [settings.headerScale]);
 
-  const marqueeText = `${settings.name} · v 1.0.3 · by LarsGravesen | invilink · `;
+  const marqueeText = `${settings.name} · v 1.0.2 · by LarsGravesen | invilink · `;
   const marqueeContent = Array(12).fill(marqueeText).join('');
 
   const renderPage = () => {

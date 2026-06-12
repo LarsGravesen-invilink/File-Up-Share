@@ -90,6 +90,24 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
     }, 800);
   };
 
+  // Track whether we've seen the server go down (restart phase)
+  const serverWentDown = useRef(false);
+
+  const pollVersion = () => {
+    // Server restarted — poll /api/version until it responds, then reload
+    pollRef.current = setTimeout(async () => {
+      try {
+        await api.checkVersion(true);
+        // Server is back up — done
+        if (progressRef.current) clearInterval(progressRef.current);
+        setProgress(100);
+        setTimeout(() => { window.location.reload(); }, 600);
+      } catch {
+        pollVersion();
+      }
+    }, 2000);
+  };
+
   const pollStatus = () => {
     pollRef.current = setTimeout(async () => {
       try {
@@ -97,7 +115,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
         if (status.done) {
           if (progressRef.current) clearInterval(progressRef.current);
           setProgress(100);
-          setTimeout(() => { window.location.reload(); }, 800);
+          setTimeout(() => { window.location.reload(); }, 600);
           return;
         }
         if (status.error) {
@@ -106,9 +124,15 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
           setUpdating(false);
           return;
         }
+        serverWentDown.current = false;
         pollStatus();
       } catch {
-        pollStatus();
+        // Request failed — server is likely restarting
+        if (!serverWentDown.current) {
+          serverWentDown.current = true;
+        }
+        // Switch to polling version endpoint to detect when server is back
+        pollVersion();
       }
     }, 2000);
   };
@@ -116,6 +140,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
   const doUpdate = async () => {
     setUpdating(true);
     setUpdateError(null);
+    serverWentDown.current = false;
     startProgressAnimation();
     try { await api.runUpdate(); } catch {}
     pollStatus();
@@ -153,7 +178,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
               onClick={() => check(true)}
               className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
             >
-              v{info?.current || '1.0.3'} · Актуально
+              v{info?.current || '1.0.2'} · Актуально
             </button>
           </>
         )}
