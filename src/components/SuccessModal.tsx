@@ -12,8 +12,19 @@ interface Props {
 export function SuccessModal({ type, title, link, onClose }: Props) {
   const [copied, setCopied] = useState(false);
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(link);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = link;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -23,10 +34,10 @@ export function SuccessModal({ type, title, link, onClose }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url: link });
+        return;
       } catch {}
-    } else {
-      copyLink();
     }
+    copyLink();
   };
 
   return (

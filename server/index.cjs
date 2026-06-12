@@ -905,7 +905,7 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.4';
+var CURRENT_VERSION = '1.0.5';
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 

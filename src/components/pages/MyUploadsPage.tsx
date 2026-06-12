@@ -17,8 +17,20 @@ export function MyUploadsPage({ uploads, onRemove, onExtend }: Props) {
   const [extendMinutes, setExtendMinutes] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const copyLink = (upload: Upload) => {
-    navigator.clipboard.writeText(window.location.origin + upload.link);
+  const copyLink = async (upload: Upload) => {
+    const url = window.location.origin + upload.link;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
     setCopiedId(upload.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
