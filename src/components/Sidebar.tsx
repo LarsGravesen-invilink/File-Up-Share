@@ -85,18 +85,18 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
         {checking ? (
           <Loader2 className={`h-3 w-3 animate-spin ${isLight ? 'text-slate-400' : 'text-white/20'}`} />
         ) : info?.hasUpdate ? (
-          <>
-            <ArrowDownCircle className="h-3.5 w-3.5 flex-shrink-0 text-cyan-400" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[10px] text-cyan-400">v{info.latest}</div>
+          <div className="flex flex-col gap-0.5 px-3 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <ArrowDownCircle className="h-3 w-3 flex-shrink-0 text-cyan-400" />
+              <span className="text-[10px] text-cyan-400">Обнаружена новая версия {info.latest}</span>
             </div>
             <button
               onClick={() => setUpdateModal(true)}
-              className="rounded-md bg-cyan-500/15 px-2 py-0.5 text-[9px] font-medium text-cyan-400 transition active:scale-90 hover:bg-cyan-500/25"
+              className={`self-start text-[10px] font-medium underline underline-offset-2 transition hover:opacity-70 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`}
             >
-              Обновить
+              Обновить сейчас
             </button>
-          </>
+          </div>
         ) : (
           <>
             <CheckCircle className={`h-3 w-3 flex-shrink-0 ${isLight ? 'text-emerald-500' : 'text-emerald-400/50'}`} />
@@ -104,7 +104,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
               onClick={() => check(true)}
               className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
             >
-              v{info?.current || '1.0.1'} · Актуально
+              v{info?.current || '1.0.2'} · Актуально
             </button>
           </>
         )}
@@ -151,7 +151,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
                     onClick={() => setUpdateModal(false)}
                     className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
                   >
-                    Отмена
+                    Отложить
                   </button>
                 )}
                 <button

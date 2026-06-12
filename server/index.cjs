@@ -905,7 +905,7 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.1';
+var CURRENT_VERSION = '1.0.2';
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 
@@ -945,18 +945,8 @@ app.post('/api/update', auth, function(req, res) {
   setTimeout(function() {
     try {
       var child = require('child_process');
-      child.execSync('cd /tmp && rm -rf File-Up-Share && git clone --depth 1 https://github.com/LarsGravesen-invilink/File-Up-Share.git', { timeout: 60000 });
-      child.execSync('cp -r /tmp/File-Up-Share/server /opt/fileupshare/', { timeout: 10000 });
-      child.execSync('cp -r /tmp/File-Up-Share/src /opt/fileupshare/', { timeout: 10000 });
-      child.execSync('cp /tmp/File-Up-Share/package.json /opt/fileupshare/', { timeout: 10000 });
-      child.execSync('cp /tmp/File-Up-Share/vite.config.ts /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
-      child.execSync('cp /tmp/File-Up-Share/tsconfig.json /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
-      child.execSync('cp /tmp/File-Up-Share/index.html /opt/fileupshare/ 2>/dev/null || true', { timeout: 10000 });
-      child.execSync('cd /opt/fileupshare && npm install', { timeout: 120000 });
-      child.execSync('cd /opt/fileupshare && npm run build', { timeout: 120000 });
-      child.execSync('rm -rf /tmp/File-Up-Share', { timeout: 10000 });
-      log('Обновление завершено, перезапуск...', 'success');
-      child.execSync('systemctl restart fileupshare', { timeout: 10000 });
+      var scriptPath = path.join(__dirname, '../autoupdate.sh');
+      child.execSync('bash ' + scriptPath, { timeout: 300000 });
     } catch(e) {
       log('Ошибка обновления: ' + e.message, 'error');
     }

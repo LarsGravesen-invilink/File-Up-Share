@@ -26,7 +26,7 @@ export function AboutPage() {
             <h2 className="mb-1 bg-gradient-to-r from-white to-white/80 bg-clip-text text-2xl font-bold text-transparent">
               FileUpShare
             </h2>
-            <p className="text-sm text-white/30">v 1.0.1</p>
+            <p className="text-sm text-white/30">v 1.0.2</p>
           </div>
         </div>
 

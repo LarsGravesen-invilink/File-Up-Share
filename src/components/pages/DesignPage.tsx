@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Check, Eye, EyeOff, Type, Save } from 'lucide-react';
+import { Palette, Check, Eye, EyeOff, Type, Save, ChevronDown } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings } from '../../types';
 import { themes } from '../../themes';
@@ -14,6 +14,20 @@ export function DesignPage({ settings, onUpdate }: Props) {
   const [confirmTheme, setConfirmTheme] = useState<string | null>(null);
   const [adTextLocal, setAdTextLocal] = useState(settings.adText);
   const [adSaved, setAdSaved] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const currentTheme = themes.find(t => t.id === settings.pageTheme) || themes[0];
 
   const applyTheme = (id: string) => {
     onUpdate({ pageTheme: id });
@@ -45,30 +59,64 @@ export function DesignPage({ settings, onUpdate }: Props) {
         className="glass-card rounded-xl p-5"
       >
         <h4 className="mb-3 text-xs font-medium text-white/40">Темы страниц</h4>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {themes.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setConfirmTheme(t.id)}
-              className={`group relative overflow-hidden rounded-lg p-3 text-left transition-all active:scale-95 active:opacity-80 hover:scale-[1.02] ${
-                settings.pageTheme === t.id ? 'ring-2 ring-cyan-500/50' : ''
-              }`}
-              style={{ background: t.bg }}
-            >
-              {settings.pageTheme === t.id && (
-                <div className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500">
-                  <Check className="h-2.5 w-2.5 text-white" />
-                </div>
-              )}
-              <div className="h-1 w-6 rounded-full" style={{ background: t.accent }} />
-              <div className="mt-2 text-[11px] font-medium" style={{ color: t.text }}>
-                {t.name}
+        <div ref={dropdownRef} className="relative">
+          {/* Trigger button */}
+          <button
+            onClick={() => setDropdownOpen(v => !v)}
+            className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/4 px-4 py-3 text-left transition hover:bg-white/6 active:scale-[0.99]"
+          >
+            {/* Mini preview swatch */}
+            <div className="flex h-9 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg" style={{ background: currentTheme.bg, border: '1px solid ' + currentTheme.borderColor }}>
+              <div className="flex flex-col gap-1 px-1.5">
+                <div className="h-0.5 w-8 rounded-full" style={{ background: currentTheme.accent }} />
+                <div className="h-0.5 w-5 rounded-full" style={{ background: currentTheme.textMuted, opacity: 0.6 }} />
+                <div className="h-0.5 w-6 rounded-full" style={{ background: currentTheme.textMuted, opacity: 0.3 }} />
               </div>
-              <div className="mt-0.5 text-[9px] opacity-40" style={{ color: t.text }}>
-                {t.dark ? 'Тёмная' : 'Светлая'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-white">{currentTheme.name}</div>
+              <div className="text-[10px] text-white/30">Тёмная тема</div>
+            </div>
+            <ChevronDown className={`h-4 w-4 flex-shrink-0 text-white/30 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dropdown list */}
+          {dropdownOpen && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-[#1a1f2e] shadow-2xl shadow-black/60">
+              <div className="max-h-72 overflow-y-auto py-1">
+                {themes.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setDropdownOpen(false); setConfirmTheme(t.id); }}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-white/5 active:bg-white/8"
+                  >
+                    {/* Swatch */}
+                    <div className="flex h-8 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg" style={{ background: t.bg, border: '1px solid ' + t.borderColor }}>
+                      <div className="flex flex-col gap-1 px-1.5">
+                        <div className="h-0.5 w-7 rounded-full" style={{ background: t.accent }} />
+                        <div className="h-0.5 w-4 rounded-full" style={{ background: t.textMuted, opacity: 0.5 }} />
+                        <div className="h-0.5 w-5 rounded-full" style={{ background: t.textMuted, opacity: 0.25 }} />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-white/90">{t.name}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="h-1.5 w-1.5 rounded-full" style={{ background: t.accent }} />
+                        <span className="text-[10px]" style={{ color: t.accent + 'cc' }}>
+                          {t.bg} · {t.accent}
+                        </span>
+                      </div>
+                    </div>
+                    {settings.pageTheme === t.id && (
+                      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-cyan-500/20">
+                        <Check className="h-3 w-3 text-cyan-400" />
+                      </div>
+                    )}
+                  </button>
+                ))}
               </div>
-            </button>
-          ))}
+            </div>
+          )}
         </div>
       </motion.div>
 
