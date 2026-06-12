@@ -76,7 +76,14 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
     try {
       await api.runUpdate();
     } catch {}
-    setTimeout(() => window.location.reload(), 5000);
+    const poll = () => {
+      setTimeout(() => {
+        api.checkVersion(true)
+          .then(() => window.location.reload())
+          .catch(() => poll());
+      }, 4000);
+    };
+    poll();
   };
 
   return (
@@ -104,7 +111,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
               onClick={() => check(true)}
               className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
             >
-              v{info?.current || '1.0.3'} · Актуально
+              v{info?.current || '1.0.4'} · Актуально
             </button>
           </>
         )}
