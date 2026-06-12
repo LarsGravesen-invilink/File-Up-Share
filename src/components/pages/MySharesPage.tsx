@@ -41,13 +41,10 @@ export function MySharesPage({ shares, onRemove, onExtend }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({ title: share.title, text, url });
-        return;
       } catch (e: any) {
-        // AbortError — пользователь закрыл шторку, не копируем
-        if (e?.name === 'AbortError') return;
+        // Ignore AbortError (user dismissed) and other errors
       }
     }
-    copyLink(share);
   };
 
   const handleExtend = () => {

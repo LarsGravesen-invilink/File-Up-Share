@@ -86,12 +86,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null 2>&1 || true
 ok "Репозитории"
 
-for pkg in git curl nginx; do
+for pkg in git curl nginx dnsutils; do
   if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
     apt-get install -y "$pkg" >/dev/null 2>&1 || true
   fi
 done
-ok "git, curl, nginx"
+ok "git, curl, nginx, dnsutils"
 
 if ! command -v node >/dev/null 2>&1; then
   info "Установка Node.js 20..."
@@ -177,9 +177,13 @@ if [ -n "$INPUT_DOMAIN" ]; then
 server {
     listen 80;
     server_name ${DOMAIN};
-    client_max_body_size 10G;
-    client_body_timeout 86400;
+    client_max_body_size 0;
+    client_body_timeout 86400s;
     client_body_buffer_size 1m;
+    send_timeout 86400s;
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
     location / {
         proxy_pass http://127.0.0.1:${NODE_PORT};
         proxy_http_version 1.1;
@@ -189,11 +193,12 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 86400;
-        proxy_send_timeout 86400;
-        proxy_connect_timeout 86400;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 75s;
         proxy_buffering off;
         proxy_request_buffering off;
+        proxy_max_temp_file_size 0;
     }
 }
 NGXEOF
@@ -208,15 +213,68 @@ NGXEOF
     info "Получение SSL..."
     apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1
 
-    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      --email "admin@${DOMAIN}" --redirect >/dev/null 2>&1; then
+    # Получаем сертификат через standalone webroot, не через --nginx,
+    # чтобы certbot не перезаписывал наш конфиг и не терял параметры для больших файлов
+    if certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+      --email "webmaster@${DOMAIN}" >/dev/null 2>&1; then
+
+      SSL_CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+      SSL_KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+
+      # Пишем финальный конфиг с редиректом HTTP→HTTPS и всеми параметрами в HTTPS-блоке
+      cat > /etc/nginx/sites-available/${SVC} << NGXEOF
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${DOMAIN};
+
+    ssl_certificate     ${SSL_CERT};
+    ssl_certificate_key ${SSL_KEY};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 0;
+    client_body_timeout 86400s;
+    client_body_buffer_size 1m;
+    send_timeout 86400s;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    location / {
+        proxy_pass http://127.0.0.1:${NODE_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 75s;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_max_temp_file_size 0;
+    }
+}
+NGXEOF
+
+      nginx -t >/dev/null 2>&1 && systemctl reload nginx
       USE_SSL=1
-      systemctl restart nginx
       ok "SSL установлен"
       PANEL_URL="https://${DOMAIN}"
     else
       warn "SSL не получен (панель работает по HTTP)"
-      info "Позже: certbot --nginx -d ${DOMAIN}"
+      info "Позже: certbot certonly --nginx -d ${DOMAIN}"
     fi
   else
     warn "DNS: ${DOMAIN} → ${DOMAIN_IP:-?} (сервер: ${SERVER_IP})"
@@ -227,9 +285,13 @@ else
   cat > /etc/nginx/sites-available/${SVC} << NGXEOF
 server {
     listen 80 default_server;
-    client_max_body_size 10G;
-    client_body_timeout 86400;
+    client_max_body_size 0;
+    client_body_timeout 86400s;
     client_body_buffer_size 1m;
+    send_timeout 86400s;
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
     location / {
         proxy_pass http://127.0.0.1:${NODE_PORT};
         proxy_http_version 1.1;
@@ -239,11 +301,12 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 86400;
-        proxy_send_timeout 86400;
-        proxy_connect_timeout 86400;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 75s;
         proxy_buffering off;
         proxy_request_buffering off;
+        proxy_max_temp_file_size 0;
     }
 }
 NGXEOF

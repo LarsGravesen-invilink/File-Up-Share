@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Share2, Upload, FolderOpen, Download,
@@ -59,6 +59,10 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
   const [checking, setChecking] = useState(false);
   const [updateModal, setUpdateModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const check = useCallback(async (force?: boolean) => {
     setChecking(true);
@@ -71,19 +75,57 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
 
   useEffect(() => { check(); }, [check]);
 
+  useEffect(() => () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+    if (progressRef.current) clearInterval(progressRef.current);
+  }, []);
+
+  const startProgressAnimation = () => {
+    setProgress(0);
+    let p = 0;
+    progressRef.current = setInterval(() => {
+      p += Math.random() * 1.5;
+      if (p >= 90) { p = 90; if (progressRef.current) clearInterval(progressRef.current); }
+      setProgress(Math.round(p));
+    }, 800);
+  };
+
+  const pollStatus = () => {
+    pollRef.current = setTimeout(async () => {
+      try {
+        const status = await api.checkUpdateStatus();
+        if (status.done) {
+          if (progressRef.current) clearInterval(progressRef.current);
+          setProgress(100);
+          setTimeout(() => { window.location.reload(); }, 800);
+          return;
+        }
+        if (status.error) {
+          if (progressRef.current) clearInterval(progressRef.current);
+          setUpdateError(status.error);
+          setUpdating(false);
+          return;
+        }
+        pollStatus();
+      } catch {
+        pollStatus();
+      }
+    }, 2000);
+  };
+
   const doUpdate = async () => {
     setUpdating(true);
-    try {
-      await api.runUpdate();
-    } catch {}
-    const poll = () => {
-      setTimeout(() => {
-        api.checkVersion(true)
-          .then(() => window.location.reload())
-          .catch(() => poll());
-      }, 4000);
-    };
-    poll();
+    setUpdateError(null);
+    startProgressAnimation();
+    try { await api.runUpdate(); } catch {}
+    pollStatus();
+  };
+
+  const handleClose = () => {
+    if (updating) return;
+    setUpdateModal(false);
+    setUpdateError(null);
+    setProgress(0);
   };
 
   return (
@@ -111,7 +153,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
               onClick={() => check(true)}
               className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
             >
-              v{info?.current || '1.0.5'} · Актуально
+              v{info?.current || '1.0.2'} · Актуально
             </button>
           </>
         )}
@@ -137,38 +179,59 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
                   {updating ? 'Обновление...' : 'Обновить панель?'}
                 </h3>
               </div>
-              {!updating && (
+
+              {!updating && !updateError && (
                 <>
                   <p className="mb-1 text-xs text-white/40">
                     Обновление до версии <b className="text-cyan-400">{info?.latest}</b>
                   </p>
                   <p className="mb-5 text-xs text-yellow-400/60">
-                    Сервис будет перезапущен. Потребуется повторная авторизация. Все файлы и данные сохранятся.
+                    Сервис будет перезапущен. Все файлы и данные сохранятся.
                   </p>
                 </>
               )}
+
               {updating && (
-                <p className="mb-5 text-xs text-white/30">
-                  Загрузка, сборка и перезапуск... Страница перезагрузится автоматически.
+                <div className="mb-5">
+                  <p className="mb-3 text-xs text-white/30">
+                    Загрузка обновления, сборка и перезапуск... Страница перезагрузится автоматически.
+                  </p>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-600"
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-right text-[10px] text-white/20">{progress}%</p>
+                </div>
+              )}
+
+              {updateError && (
+                <p className="mb-5 text-xs text-red-400/80">
+                  Ошибка обновления: {updateError}
                 </p>
               )}
+
               <div className="flex gap-2">
                 {!updating && (
                   <button
-                    onClick={() => setUpdateModal(false)}
+                    onClick={handleClose}
                     className="flex-1 rounded-lg border border-white/10 py-2.5 text-xs text-white/40 transition active:scale-95 hover:bg-white/5"
                   >
-                    Отложить
+                    {updateError ? 'Закрыть' : 'Отложить'}
                   </button>
                 )}
-                <button
-                  onClick={doUpdate}
-                  disabled={updating}
-                  className="btn-glow flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 py-2.5 text-xs font-medium text-white transition active:scale-95 disabled:opacity-50"
-                >
-                  {updating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  {updating ? 'Обновление...' : 'Обновить'}
-                </button>
+                {!updateError && (
+                  <button
+                    onClick={updating ? undefined : doUpdate}
+                    disabled={updating}
+                    className="btn-glow flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 py-2.5 text-xs font-medium text-white transition active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {updating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {updating ? 'Идёт обновление...' : 'Обновить'}
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -177,6 +240,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
     </>
   );
 }
+
 
 export function Sidebar({ page, onNavigate, onLogout, open, onClose, name, logo, headerScale, isLight }: Props) {
   const brandScale = headerScale === 'large' ? 'scale-[1.15]' : headerScale === 'medium' ? 'scale-[1.08]' : '';

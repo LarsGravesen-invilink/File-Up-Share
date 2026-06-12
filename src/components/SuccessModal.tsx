@@ -34,10 +34,8 @@ export function SuccessModal({ type, title, link, onClose }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url: link });
-        return;
       } catch {}
     }
-    copyLink();
   };
 
   return (

@@ -41,12 +41,10 @@ export function MyUploadsPage({ uploads, onRemove, onExtend }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({ title: upload.title, text, url });
-        return;
       } catch (e: any) {
-        if (e?.name === 'AbortError') return;
+        // Ignore AbortError (user dismissed) and other errors
       }
     }
-    copyLink(upload);
   };
 
   const handleExtend = () => {

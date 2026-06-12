@@ -170,3 +170,6 @@ export const checkVersion = (force?: boolean) =>
 
 export const runUpdate = () =>
   request<{ ok: boolean }>('/update', { method: 'POST' });
+
+export const checkUpdateStatus = () =>
+  request<{ running: boolean; done: boolean; error: string | null }>('/update-status');

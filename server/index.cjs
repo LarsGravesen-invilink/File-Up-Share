@@ -905,7 +905,7 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.5';
+var CURRENT_VERSION = '1.0.2';
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 
@@ -938,16 +938,28 @@ app.get('/api/version', auth, function(req, res) {
   }
 });
 
+var updateStatus = { running: false, done: false, error: null };
+
+app.get('/api/update-status', auth, function(req, res) {
+  res.json(updateStatus);
+});
+
 app.post('/api/update', auth, function(req, res) {
+  if (updateStatus.running) {
+    return res.json({ ok: true, message: 'Обновление уже выполняется' });
+  }
+  updateStatus = { running: true, done: false, error: null };
   res.json({ ok: true, message: 'Обновление запущено' });
   log('Обновление панели...', 'warn');
-  sessions = {}; saveSess();
   setTimeout(function() {
     try {
       var child = require('child_process');
       var scriptPath = path.join(__dirname, '../autoupdate.sh');
       child.execSync('bash ' + scriptPath, { timeout: 300000 });
+      updateStatus = { running: false, done: true, error: null };
+      log('Обновление завершено успешно', 'info');
     } catch(e) {
+      updateStatus = { running: false, done: false, error: e.message };
       log('Ошибка обновления: ' + e.message, 'error');
     }
   }, 500);
