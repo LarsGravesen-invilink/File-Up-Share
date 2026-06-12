@@ -57,6 +57,7 @@ export function DesignPage({ settings, onUpdate }: Props) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="glass-card rounded-xl p-5"
+        style={{ position: 'relative', zIndex: dropdownOpen ? 10 : undefined }}
       >
         <h4 className="mb-3 text-xs font-medium text-white/40">Темы страниц</h4>
         <div ref={dropdownRef} className="relative">

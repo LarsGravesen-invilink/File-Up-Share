@@ -104,7 +104,7 @@ function VersionChecker({ isLight }: { isLight: boolean }) {
               onClick={() => check(true)}
               className={`text-[10px] transition hover:opacity-70 ${isLight ? 'text-slate-400' : 'text-white/20'}`}
             >
-              v{info?.current || '1.0.2'} · Актуально
+              v{info?.current || '1.0.3'} · Актуально
             </button>
           </>
         )}
