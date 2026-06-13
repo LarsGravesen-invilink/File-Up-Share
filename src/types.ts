@@ -46,6 +46,11 @@ export interface Settings {
   botDailySummary: boolean;
   botDailySummaryTime: string;
   timezone: string;
+  previewEnabled: boolean;
+  previewTitle: string;
+  previewDescription: string;
+  previewSiteName: string;
+  previewImage: string;
 }
 
 export interface Stats {

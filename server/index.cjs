@@ -33,7 +33,8 @@ var config = {
   botPollInterval: 3, botPollUnit: 'sec',
   botNotifyShare: true, botNotifyUpload: true, botNotifyReceived: true, botNotifyService: true,
   botDailySummary: false, botDailySummaryTime: '09:00',
-  timezone: 'Europe/Moscow'
+  timezone: 'Europe/Moscow',
+  previewEnabled: false, previewTitle: '', previewDescription: '', previewSiteName: '', previewImage: ''
 };
 var shares = [];
 var uploads = [];
@@ -778,7 +779,7 @@ app.get('/api/public/share/:enc', function(req, res) {
   if (!s) return res.status(404).json({ error: 'Not found' });
   var pub = JSON.parse(JSON.stringify(s));
   if (s.password) { pub.hasPassword = true; pub.files = []; pub.cover = ''; }
-  res.json({ share: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme } });
+  res.json({ share: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme, previewEnabled: config.previewEnabled, previewTitle: config.previewTitle, previewDescription: config.previewDescription, previewSiteName: config.previewSiteName, previewImage: config.previewImage } });
 });
 
 app.post('/api/public/share/:enc/verify', function(req, res) {
@@ -795,7 +796,7 @@ app.get('/api/public/upload/:enc', function(req, res) {
   if (!u) return res.status(404).json({ error: 'Not found' });
   var pub = JSON.parse(JSON.stringify(u));
   if (u.password) pub.hasPassword = true;
-  res.json({ upload: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme } });
+  res.json({ upload: pub, config: { name: config.name, logo: config.logo, hideLifetimeOnPage: config.hideLifetimeOnPage, adEnabled: config.adEnabled, adText: config.adText, pageTheme: config.pageTheme, previewEnabled: config.previewEnabled, previewTitle: config.previewTitle, previewDescription: config.previewDescription, previewSiteName: config.previewSiteName, previewImage: config.previewImage } });
 });
 
 app.post('/api/public/upload/:enc/verify', function(req, res) {
@@ -905,7 +906,7 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.2';
+var CURRENT_VERSION = '1.0.3';
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 

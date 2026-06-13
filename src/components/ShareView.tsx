@@ -37,7 +37,7 @@ export function ShareView({ encoded }: Props) {
 
   useEffect(() => {
     if (!config) return;
-    return applyPublicPageMeta(config.name, config.logo);
+    return applyPublicPageMeta(config);
   }, [config]);
 
   const loadShare = async () => {

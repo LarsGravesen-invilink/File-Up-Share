@@ -35,6 +35,11 @@ const defaultSettings: Settings = {
   botDailySummary: false,
   botDailySummaryTime: '09:00',
   timezone: 'Europe/Moscow',
+  previewEnabled: false,
+  previewTitle: '',
+  previewDescription: '',
+  previewSiteName: '',
+  previewImage: '',
 };
 
 const defaultStats: Stats = {
