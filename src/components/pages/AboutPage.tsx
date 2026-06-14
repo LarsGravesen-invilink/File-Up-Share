@@ -1,7 +1,13 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Info, ExternalLink, Upload, Heart, Code2, Coffee } from 'lucide-react';
+import * as api from '../../api';
 
 export function AboutPage() {
+  const [version, setVersion] = useState<string>('…');
+  useEffect(() => {
+    api.checkVersion().then(r => setVersion(r.current)).catch(() => {});
+  }, []);
   return (
     <div className="space-y-5">
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
@@ -26,7 +32,7 @@ export function AboutPage() {
             <h2 className="mb-1 bg-gradient-to-r from-white to-white/80 bg-clip-text text-2xl font-bold text-transparent">
               FileUpShare
             </h2>
-            <p className="text-sm text-white/30">v 1.0.2</p>
+            <p className="text-sm text-white/30">v {version}</p>
           </div>
         </div>
 

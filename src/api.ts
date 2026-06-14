@@ -172,4 +172,4 @@ export const runUpdate = () =>
   request<{ ok: boolean }>('/update', { method: 'POST' });
 
 export const checkUpdateStatus = () =>
-  request<{ running: boolean; done: boolean; error: string | null }>('/update-status');
+  request<{ running: boolean; done: boolean; error: string | null; step: string; pct: number; steps: { key: string; pct: number }[] }>('/update-status');

@@ -906,7 +906,17 @@ app.get('/api/download/:dir/:filename', function(req, res) {
   res.sendFile(path.resolve(fp));
 });
 
-var CURRENT_VERSION = '1.0.3';
+// ─── Version / Update ────────────────────────────────────────────────────────
+
+// Read current version from version.json (so it updates after each upgrade)
+function readCurrentVersion() {
+  try {
+    var vp = path.join(__dirname, '../version.json');
+    return JSON.parse(fs.readFileSync(vp, 'utf8')).version || '1.0.3';
+  } catch(e) { return '1.0.3'; }
+}
+
+var CURRENT_VERSION = readCurrentVersion();
 var VERSION_URL = 'https://raw.githubusercontent.com/LarsGravesen-invilink/File-Up-Share/main/version.json';
 var cachedVersion = { version: CURRENT_VERSION, checked: 0 };
 
@@ -937,41 +947,113 @@ setInterval(function() { checkVersion(); }, 6 * 3600000);
 setTimeout(function() { checkVersion(); }, 5000);
 
 app.get('/api/version', auth, function(req, res) {
+  // Re-read current version on every call (reflects post-update version.json)
+  var cur = readCurrentVersion();
+  CURRENT_VERSION = cur;
   var force = req.query.force === '1';
   if (force || Date.now() - cachedVersion.checked > 3600000) {
     checkVersion(function(err) {
-      res.json({ current: CURRENT_VERSION, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== CURRENT_VERSION });
+      res.json({ current: cur, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== cur });
     });
   } else {
-    res.json({ current: CURRENT_VERSION, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== CURRENT_VERSION });
+    res.json({ current: cur, latest: cachedVersion.version, hasUpdate: cachedVersion.version !== cur });
   }
 });
 
-var updateStatus = { running: false, done: false, error: null };
+// Progress file written by autoupdate.sh
+var UPDATE_PROGRESS_FILE = '/tmp/fus-update-progress.json';
+
+// Steps with their expected progress percentages (mirrors autoupdate.sh)
+var UPDATE_STEPS = [
+  { key: 'Скачивание репозитория',           pct: 5  },
+  { key: 'Резервное копирование данных',      pct: 15 },
+  { key: 'Обновление системных файлов',       pct: 30 },
+  { key: 'Восстановление пользовательских данных', pct: 40 },
+  { key: 'Установка зависимостей',            pct: 55 },
+  { key: 'Сборка фронтенда',                 pct: 75 },
+  { key: 'Перезапуск сервиса',               pct: 90 },
+  { key: 'Готово',                            pct: 100 },
+];
+
+var updateStatus = { running: false, done: false, error: null, step: '', pct: 0 };
+
+function readProgressFile() {
+  try {
+    var raw = fs.readFileSync(UPDATE_PROGRESS_FILE, 'utf8').trim();
+    // file may have multiple lines — take the last non-empty one
+    var lines = raw.split('\n').filter(Boolean);
+    return JSON.parse(lines[lines.length - 1]);
+  } catch(e) { return null; }
+}
 
 app.get('/api/update-status', auth, function(req, res) {
-  res.json(updateStatus);
+  // Merge file-based progress into status
+  if (updateStatus.running) {
+    var prog = readProgressFile();
+    if (prog) {
+      updateStatus.step = prog.step || updateStatus.step;
+      updateStatus.pct  = prog.pct  != null ? prog.pct : updateStatus.pct;
+      if (prog.error) {
+        updateStatus.running = false;
+        updateStatus.done    = false;
+        updateStatus.error   = prog.error;
+      } else if (prog.step === 'Готово') {
+        updateStatus.running = false;
+        updateStatus.done    = true;
+        updateStatus.pct     = 100;
+      }
+    }
+  }
+  res.json({
+    running: updateStatus.running,
+    done:    updateStatus.done,
+    error:   updateStatus.error,
+    step:    updateStatus.step,
+    pct:     updateStatus.pct,
+    steps:   UPDATE_STEPS,
+  });
 });
 
 app.post('/api/update', auth, function(req, res) {
   if (updateStatus.running) {
     return res.json({ ok: true, message: 'Обновление уже выполняется' });
   }
-  updateStatus = { running: true, done: false, error: null };
+  // Clean up stale progress file
+  try { fs.unlinkSync(UPDATE_PROGRESS_FILE); } catch(e) {}
+
+  updateStatus = { running: true, done: false, error: null, step: 'Запуск', pct: 0 };
   res.json({ ok: true, message: 'Обновление запущено' });
   log('Обновление панели...', 'warn');
-  setTimeout(function() {
-    try {
-      var child = require('child_process');
-      var scriptPath = path.join(__dirname, '../autoupdate.sh');
-      child.execSync('bash ' + scriptPath, { timeout: 300000 });
-      updateStatus = { running: false, done: true, error: null };
+
+  var child = require('child_process');
+  var scriptPath = path.join(__dirname, '../autoupdate.sh');
+
+  // Spawn (not execSync) so the server stays alive to answer polling requests
+  var proc = child.spawn('bash', [scriptPath], {
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  var output = '';
+  proc.stdout.on('data', function(d) { output += d.toString(); });
+  proc.stderr.on('data', function(d) { output += d.toString(); });
+
+  proc.on('close', function(code) {
+    if (code === 0) {
+      updateStatus = { running: false, done: true, error: null, step: 'Готово', pct: 100 };
       log('Обновление завершено успешно', 'info');
-    } catch(e) {
-      updateStatus = { running: false, done: false, error: e.message };
-      log('Ошибка обновления: ' + e.message, 'error');
+    } else {
+      var prog = readProgressFile();
+      var errMsg = (prog && prog.error) ? prog.error : ('exit code ' + code);
+      updateStatus = { running: false, done: false, error: errMsg, step: 'Ошибка', pct: 0 };
+      log('Ошибка обновления: ' + errMsg, 'error');
     }
-  }, 500);
+  });
+
+  proc.on('error', function(e) {
+    updateStatus = { running: false, done: false, error: e.message, step: 'Ошибка', pct: 0 };
+    log('Ошибка запуска обновления: ' + e.message, 'error');
+  });
 });
 
 if (distPath) {

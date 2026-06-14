@@ -14,6 +14,7 @@ import { SecurityPage } from './pages/SecurityPage';
 import { TelegramPage } from './pages/TelegramPage';
 import { AboutPage } from './pages/AboutPage';
 import type { Page, Settings, Stats, Share, Upload as UploadType, ReceivedFile, LogEntry } from '../types';
+import * as api from '../api';
 
 const pageTitles: Record<Page, string> = {
   'info': 'Информация',
@@ -75,6 +76,10 @@ export function Panel({
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<string>('1.0.3');
+  useEffect(() => {
+    api.checkVersion().then(r => setCurrentVersion(r.current)).catch(() => {});
+  }, []);
 
   // Handle browser/gesture back: close sidebar or go back one page step
   useEffect(() => {
@@ -153,7 +158,7 @@ export function Panel({
     return 'header-scale-default';
   }, [settings.headerScale]);
 
-  const marqueeText = `${settings.name} · v 1.0.2 · by LarsGravesen | invilink · `;
+  const marqueeText = `${settings.name} · v ${currentVersion} · by LarsGravesen | invilink · `;
   const marqueeContent = Array(12).fill(marqueeText).join('');
 
   const renderPage = () => {
