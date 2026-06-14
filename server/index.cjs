@@ -610,10 +610,38 @@ app.post('/api/change-credentials', auth, function(req, res) {
   res.json({ ok: true });
 });
 
+// Public endpoint to serve the OG preview image (no auth — bots must access it)
+var OG_IMAGE_FILE = path.join(DATA_DIR, 'og-image.jpg');
+app.get('/api/og-image', function(req, res) {
+  if (fs.existsSync(OG_IMAGE_FILE)) {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    return res.sendFile(OG_IMAGE_FILE);
+  }
+  res.status(404).end();
+});
+
 app.patch('/api/config', auth, function(req, res) {
   var hadBot = config.botEnabled;
   var hadToken = config.botToken;
   var hadChatId = config.botChatId;
+
+  // If previewImage is a base64 data URL — save it to disk, store file URL instead
+  if (req.body.previewImage && req.body.previewImage.startsWith('data:')) {
+    try {
+      var matches = req.body.previewImage.match(/^data:([a-z/]+);base64,(.+)$/);
+      if (matches) {
+        var imgBuf = Buffer.from(matches[2], 'base64');
+        fs.writeFileSync(OG_IMAGE_FILE, imgBuf);
+        req.body.previewImage = '/api/og-image';
+      }
+    } catch (e) { /* keep original if save fails */ }
+  }
+
+  // Same for logo field
+  if (req.body.logo && req.body.logo.startsWith('data:')) {
+    // logo stays as base64 (used inline in panel) — don't touch it
+  }
+
   config = Object.assign({}, config, req.body);
   save();
   var tokenChanged = req.body.botToken && req.body.botToken !== hadToken;
@@ -1094,8 +1122,10 @@ if (distPath) {
     var title = config.previewTitle || config.name || 'FileUpShare';
     var desc = config.previewDescription || ('Персональная система обмена файлами ' + (config.name || 'FileUpShare'));
     var siteName = config.previewSiteName || title;
-    var image = config.previewImage || config.logo || '';
-    var html = buildOgHtml(title, desc, siteName, image, req.protocol + '://' + req.get('host') + req.originalUrl);
+    var baseUrl = req.protocol + '://' + req.get('host');
+    var rawImg = config.previewImage || '';
+    var image = rawImg ? (rawImg.startsWith('/') ? baseUrl + rawImg + '?v=' + Date.now() : rawImg) : '';
+    var html = buildOgHtml(title, desc, siteName, image, baseUrl + req.originalUrl);
     if (!html) return res.sendFile(path.join(distPath, 'index.html'));
     res.set('Content-Type', 'text/html; charset=utf-8').send(html);
   });
@@ -1110,8 +1140,10 @@ if (distPath) {
     var title = config.previewTitle || config.name || 'FileUpShare';
     var desc = config.previewDescription || ('Персональная система обмена файлами ' + (config.name || 'FileUpShare'));
     var siteName = config.previewSiteName || title;
-    var image = config.previewImage || config.logo || '';
-    var html = buildOgHtml(title, desc, siteName, image, req.protocol + '://' + req.get('host') + req.originalUrl);
+    var baseUrl = req.protocol + '://' + req.get('host');
+    var rawImg = config.previewImage || '';
+    var image = rawImg ? (rawImg.startsWith('/') ? baseUrl + rawImg + '?v=' + Date.now() : rawImg) : '';
+    var html = buildOgHtml(title, desc, siteName, image, baseUrl + req.originalUrl);
     if (!html) return res.sendFile(path.join(distPath, 'index.html'));
     res.set('Content-Type', 'text/html; charset=utf-8').send(html);
   });

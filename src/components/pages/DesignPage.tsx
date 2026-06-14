@@ -110,16 +110,54 @@ function ImageCropper({ src, onDone, onCancel }: CropperProps) {
   };
   const onMouseUp = () => { dragging.current = false; };
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    dragging.current = true;
-    dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, ox: offset.x, oy: offset.y };
+  // Pinch-to-zoom refs
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartScale = useRef<number>(1);
+  const pinchMidStart = useRef<{ x: number; y: number } | null>(null);
+  const pinchStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const getTouchDist = (touches: React.TouchList) => {
+    const dx = touches[1].clientX - touches[0].clientX;
+    const dy = touches[1].clientY - touches[0].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
   };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      dragging.current = true;
+      pinchStartDist.current = null;
+      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, ox: offset.x, oy: offset.y };
+    } else if (e.touches.length === 2) {
+      dragging.current = false;
+      pinchStartDist.current = getTouchDist(e.touches);
+      pinchStartScale.current = scale;
+      pinchStartOffset.current = { ...offset };
+      pinchMidStart.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+    }
+  };
+
   const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || e.touches.length !== 1) return;
-    const dx = (e.touches[0].clientX - dragStart.current.mx) * (CANVAS_W / DISP_W);
-    const dy = (e.touches[0].clientY - dragStart.current.my) * (CANVAS_H / DISP_H);
-    setOffset({ x: dragStart.current.ox + dx, y: dragStart.current.oy + dy });
+    e.preventDefault();
+    if (e.touches.length === 2 && pinchStartDist.current !== null && pinchMidStart.current) {
+      // Pinch zoom
+      const dist = getTouchDist(e.touches);
+      const newScale = Math.min(10, Math.max(0.1, pinchStartScale.current * (dist / pinchStartDist.current)));
+      // Also pan with midpoint movement
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const dx = (midX - pinchMidStart.current.x) * (CANVAS_W / DISP_W);
+      const dy = (midY - pinchMidStart.current.y) * (CANVAS_H / DISP_H);
+      setScale(newScale);
+      setOffset({ x: pinchStartOffset.current.x + dx, y: pinchStartOffset.current.y + dy });
+    } else if (e.touches.length === 1 && dragging.current) {
+      const dx = (e.touches[0].clientX - dragStart.current.mx) * (CANVAS_W / DISP_W);
+      const dy = (e.touches[0].clientY - dragStart.current.my) * (CANVAS_H / DISP_H);
+      setOffset({ x: dragStart.current.ox + dx, y: dragStart.current.oy + dy });
+    }
   };
 
   const handleDone = () => {
@@ -146,18 +184,18 @@ function ImageCropper({ src, onDone, onCancel }: CropperProps) {
           </button>
         </div>
 
-        <p className="text-[10px] text-white/30">Перетащите изображение, чтобы выбрать отображаемую область (1200×630 px)</p>
+        <p className="text-[10px] text-white/30">Перетащите для позиционирования · Щипок двумя пальцами для масштабирования (1200×630 px)</p>
 
         {/* Canvas display */}
         <div className="relative overflow-hidden rounded-xl border border-white/10"
-          style={{ width: DISP_W, height: DISP_H, cursor: 'grab', maxWidth: '100%', margin: '0 auto' }}
+          style={{ width: DISP_W, height: DISP_H, cursor: 'grab', maxWidth: '100%', margin: '0 auto', touchAction: 'none' }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseUp}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
-          onTouchEnd={onMouseUp}
+          onTouchEnd={() => { dragging.current = false; pinchStartDist.current = null; }}
         >
           <canvas
             ref={canvasRef}
