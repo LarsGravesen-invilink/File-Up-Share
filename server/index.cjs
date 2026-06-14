@@ -1056,7 +1056,66 @@ app.post('/api/update', auth, function(req, res) {
   });
 });
 
+// ── OG meta injection for public share/upload pages ──────────────────────────
+// Messengers and bots fetch pages server-side before JS runs, so OG tags must
+// be present in the raw HTML response. We inject them here for /s/:enc and
+// /u/:enc routes before the catch-all static handler.
+function buildOgHtml(ogTitle, ogDesc, ogSiteName, ogImage, ogUrl) {
+  if (!distPath) return null;
+  var base = fs.readFileSync(path.join(distPath, 'index.html'), 'utf8');
+  var esc = function(s) { return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  // Replace placeholder meta tags with real values
+  base = base
+    .replace(/<title>[^<]*<\/title>/, '<title>' + esc(ogTitle) + '</title>')
+    .replace(/<meta name="title"[^>]*>/, '<meta name="title" content="' + esc(ogTitle) + '" />')
+    .replace(/<meta name="description"[^>]*>/, '<meta name="description" content="' + esc(ogDesc) + '" />')
+    .replace(/<meta property="og:title"[^>]*>/, '<meta property="og:title" content="' + esc(ogTitle) + '" />')
+    .replace(/<meta property="og:description"[^>]*>/, '<meta property="og:description" content="' + esc(ogDesc) + '" />')
+    .replace(/<meta property="og:site_name"[^>]*>/, '<meta property="og:site_name" content="' + esc(ogSiteName) + '" />')
+    .replace(/<meta property="og:image"[^>]*>/, '<meta property="og:image" content="' + esc(ogImage) + '" />')
+    .replace(/<meta name="twitter:title"[^>]*>/, '<meta name="twitter:title" content="' + esc(ogTitle) + '" />')
+    .replace(/<meta name="twitter:description"[^>]*>/, '<meta name="twitter:description" content="' + esc(ogDesc) + '" />')
+    .replace(/<meta name="twitter:image"[^>]*>/, '<meta name="twitter:image" content="' + esc(ogImage) + '" />');
+  // Inject og:url if not present
+  if (ogUrl && base.indexOf('og:url') === -1) {
+    base = base.replace('</head>', '<meta property="og:url" content="' + esc(ogUrl) + '" />\n  </head>');
+  }
+  return base;
+}
+
 if (distPath) {
+  // Public share page with OG meta injection
+  app.get('/s/:enc', function(req, res) {
+    var id = did(req.params.enc);
+    var s = id && shares.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
+    if (!s || !config.previewEnabled) {
+      return res.sendFile(path.join(distPath, 'index.html'));
+    }
+    var title = config.previewTitle || config.name || 'FileUpShare';
+    var desc = config.previewDescription || ('Персональная система обмена файлами ' + (config.name || 'FileUpShare'));
+    var siteName = config.previewSiteName || title;
+    var image = config.previewImage || config.logo || '';
+    var html = buildOgHtml(title, desc, siteName, image, req.protocol + '://' + req.get('host') + req.originalUrl);
+    if (!html) return res.sendFile(path.join(distPath, 'index.html'));
+    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  });
+
+  // Public upload page with OG meta injection
+  app.get('/u/:enc', function(req, res) {
+    var id = did(req.params.enc);
+    var u = id && uploads.find(function(x) { return x.id === id && x.expiresAt > Date.now(); });
+    if (!u || !config.previewEnabled) {
+      return res.sendFile(path.join(distPath, 'index.html'));
+    }
+    var title = config.previewTitle || config.name || 'FileUpShare';
+    var desc = config.previewDescription || ('Персональная система обмена файлами ' + (config.name || 'FileUpShare'));
+    var siteName = config.previewSiteName || title;
+    var image = config.previewImage || config.logo || '';
+    var html = buildOgHtml(title, desc, siteName, image, req.protocol + '://' + req.get('host') + req.originalUrl);
+    if (!html) return res.sendFile(path.join(distPath, 'index.html'));
+    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  });
+
   app.get('*', function(req, res) {
     res.sendFile(path.join(distPath, 'index.html'));
   });

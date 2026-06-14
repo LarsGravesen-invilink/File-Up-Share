@@ -30,6 +30,20 @@ function ImageCropper({ src, onDone, onCancel }: CropperProps) {
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
 
+  // Lock viewport zoom while cropper is open (prevents pinch-to-zoom on mobile)
+  useEffect(() => {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    const originalContent = viewport ? viewport.getAttribute('content') : null;
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    }
+    return () => {
+      if (viewport && originalContent !== null) {
+        viewport.setAttribute('content', originalContent);
+      }
+    };
+  }, []);
+
   // OG recommended size 1200×630
   const CANVAS_W = 1200;
   const CANVAS_H = 630;
@@ -202,57 +216,60 @@ interface DemoPreviewProps {
 
 function DemoPreview({ title, description, siteName, image, onClose }: DemoPreviewProps) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-sm space-y-3"
+        className="w-full max-w-sm mx-auto"
+        style={{ maxHeight: '90vh', overflowY: 'auto', padding: '12px 12px 20px' }}
       >
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-white/40 flex items-center gap-1.5">
             <ExternalLink className="h-3.5 w-3.5" />
             Предпросмотр карточки ссылки
           </span>
-          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition">
+          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition p-1">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Telegram-style card */}
-        <div className="rounded-xl overflow-hidden border border-white/10 bg-[#1a1f2e]">
-          {image && (
-            <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-              <img src={image} alt="" className="w-full h-full object-cover" />
+        <div className="space-y-3">
+          {/* Telegram-style card */}
+          <div className="rounded-xl overflow-hidden border border-white/10 bg-[#1a1f2e]">
+            {image && (
+              <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
+                <img src={image} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-3 space-y-0.5">
+              {siteName && <p className="text-[10px] text-cyan-400 font-medium">{siteName}</p>}
+              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+              {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
             </div>
-          )}
-          <div className="p-3 space-y-0.5">
-            {siteName && <p className="text-[10px] text-cyan-400 font-medium">{siteName}</p>}
-            <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-            {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
           </div>
-        </div>
 
-        {/* WhatsApp-style card */}
-        <div className="rounded-xl overflow-hidden border-l-4 border-[#25D366] bg-[#1a1f2e]/80">
-          {image && (
-            <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-              <img src={image} alt="" className="w-full h-full object-cover" />
+          {/* WhatsApp-style card */}
+          <div className="rounded-xl overflow-hidden border-l-4 border-[#25D366] bg-[#1a1f2e]/80">
+            {image && (
+              <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
+                <img src={image} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-3 space-y-0.5">
+              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+              {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
+              {siteName && <p className="text-[10px] text-white/30">{siteName}</p>}
             </div>
-          )}
-          <div className="p-3 space-y-0.5">
-            <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-            {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
-            {siteName && <p className="text-[10px] text-white/30">{siteName}</p>}
           </div>
-        </div>
 
-        <button
-          onClick={onClose}
-          className="w-full rounded-lg border border-white/10 py-2 text-xs text-white/40 hover:bg-white/5 transition active:scale-95"
-        >
-          Закрыть демо
-        </button>
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg border border-white/10 py-2.5 text-xs text-white/40 hover:bg-white/5 transition active:scale-95"
+          >
+            Закрыть демо
+          </button>
+        </div>
       </motion.div>
     </div>
   );
