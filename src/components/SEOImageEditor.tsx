@@ -3,6 +3,7 @@
  * Canvas-based, без внешних зависимостей кроме React + framer-motion + lucide-react
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Check, ZoomIn, ZoomOut, RotateCw, FlipHorizontal,
@@ -501,8 +502,8 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
   const activePreset = PRESETS.find(p => p.id === presetId)!;
 
   // ─────────────────────────────── Render ──────────────────────────────────
-  return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md sm:p-4">
       <motion.div
         initial={{ opacity: 0, y: 32 }}
         animate={{ opacity: 1, y: 0 }}
@@ -749,6 +750,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
