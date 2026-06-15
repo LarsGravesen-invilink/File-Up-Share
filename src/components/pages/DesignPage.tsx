@@ -1,263 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Check, Eye, EyeOff, Type, Save, ChevronDown, Link2, Image as ImageIcon, X, ZoomIn, ZoomOut, Move, Crop, Sparkles, ExternalLink } from 'lucide-react';
+import { Palette, Check, Eye, EyeOff, Type, Save, ChevronDown, Link2, Image as ImageIcon, X, Crop, ExternalLink } from 'lucide-react';
 import { Toggle } from '../Toggle';
 import type { Settings } from '../../types';
 import { themes } from '../../themes';
+import { SEOImageEditor } from '../SEOImageEditor';
 
 interface Props {
   settings: Settings;
   onUpdate: (patch: Partial<Settings>) => void;
 }
 
-// ────────────────────────────────────────────────
-// Inline image cropper (no external deps needed)
-// ────────────────────────────────────────────────
-interface CropperProps {
-  src: string;
-  onDone: (dataUrl: string) => void;
-  onCancel: () => void;
-}
 
-function ImageCropper({ src, onDone, onCancel }: CropperProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-
-  // State: scale, pan offset (cx,cy = image center in canvas coords)
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const dragging = useRef(false);
-  const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
-
-  // Lock viewport zoom while cropper is open (prevents pinch-to-zoom on mobile)
-  useEffect(() => {
-    const viewport = document.querySelector('meta[name="viewport"]');
-    const originalContent = viewport ? viewport.getAttribute('content') : null;
-    if (viewport) {
-      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-    }
-    return () => {
-      if (viewport && originalContent !== null) {
-        viewport.setAttribute('content', originalContent);
-      }
-    };
-  }, []);
-
-  // OG recommended size 1200×630
-  const CANVAS_W = 1200;
-  const CANVAS_H = 630;
-  // Display size
-  const DISP_W = 480;
-  const DISP_H = 252;
-
-  // Load image once
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      imgRef.current = img;
-      // Auto-fit: scale to cover the canvas
-      const scaleX = CANVAS_W / img.naturalWidth;
-      const scaleY = CANVAS_H / img.naturalHeight;
-      const s = Math.max(scaleX, scaleY);
-      setScale(s);
-      setOffset({ x: CANVAS_W / 2, y: CANVAS_H / 2 });
-    };
-    img.src = src;
-  }, [src]);
-
-  // Redraw canvas when scale/offset change
-  useEffect(() => {
-    draw();
-  }, [scale, offset]);
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const img = imgRef.current;
-    if (!canvas || !img) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    const w = img.naturalWidth * scale;
-    const h = img.naturalHeight * scale;
-    ctx.drawImage(img, offset.x - w / 2, offset.y - h / 2, w, h);
-  }, [scale, offset]);
-
-  const autoFit = () => {
-    const img = imgRef.current;
-    if (!img) return;
-    const scaleX = CANVAS_W / img.naturalWidth;
-    const scaleY = CANVAS_H / img.naturalHeight;
-    const s = Math.max(scaleX, scaleY);
-    setScale(s);
-    setOffset({ x: CANVAS_W / 2, y: CANVAS_H / 2 });
-  };
-
-  const zoom = (factor: number) => {
-    setScale(prev => Math.min(10, Math.max(0.1, prev * factor)));
-  };
-
-  // Pointer drag
-  const onMouseDown = (e: React.MouseEvent) => {
-    dragging.current = true;
-    dragStart.current = { mx: e.clientX, my: e.clientY, ox: offset.x, oy: offset.y };
-  };
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!dragging.current) return;
-    const dx = (e.clientX - dragStart.current.mx) * (CANVAS_W / DISP_W);
-    const dy = (e.clientY - dragStart.current.my) * (CANVAS_H / DISP_H);
-    setOffset({ x: dragStart.current.ox + dx, y: dragStart.current.oy + dy });
-  };
-  const onMouseUp = () => { dragging.current = false; };
-
-  // Pinch-to-zoom refs
-  const pinchStartDist = useRef<number | null>(null);
-  const pinchStartScale = useRef<number>(1);
-  const pinchMidStart = useRef<{ x: number; y: number } | null>(null);
-  const pinchStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const getTouchDist = (touches: React.TouchList) => {
-    const dx = touches[1].clientX - touches[0].clientX;
-    const dy = touches[1].clientY - touches[0].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 1) {
-      dragging.current = true;
-      pinchStartDist.current = null;
-      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, ox: offset.x, oy: offset.y };
-    } else if (e.touches.length === 2) {
-      dragging.current = false;
-      pinchStartDist.current = getTouchDist(e.touches);
-      pinchStartScale.current = scale;
-      pinchStartOffset.current = { ...offset };
-      pinchMidStart.current = {
-        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-      };
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2 && pinchStartDist.current !== null && pinchMidStart.current) {
-      // Pinch zoom
-      const dist = getTouchDist(e.touches);
-      const newScale = Math.min(10, Math.max(0.1, pinchStartScale.current * (dist / pinchStartDist.current)));
-      // Also pan with midpoint movement
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      const dx = (midX - pinchMidStart.current.x) * (CANVAS_W / DISP_W);
-      const dy = (midY - pinchMidStart.current.y) * (CANVAS_H / DISP_H);
-      setScale(newScale);
-      setOffset({ x: pinchStartOffset.current.x + dx, y: pinchStartOffset.current.y + dy });
-    } else if (e.touches.length === 1 && dragging.current) {
-      const dx = (e.touches[0].clientX - dragStart.current.mx) * (CANVAS_W / DISP_W);
-      const dy = (e.touches[0].clientY - dragStart.current.my) * (CANVAS_H / DISP_H);
-      setOffset({ x: dragStart.current.ox + dx, y: dragStart.current.oy + dy });
-    }
-  };
-
-  const handleDone = () => {
-    draw();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Detect if source has transparency by checking alpha channel
-    const img = imgRef.current;
-    const hasAlpha = img && (src.startsWith('data:image/png') || src.startsWith('data:image/webp') || src.startsWith('data:image/gif'));
-
-    if (hasAlpha) {
-      // Keep PNG for transparency support
-      onDone(canvas.toDataURL('image/png'));
-    } else {
-      // JPEG with progressive quality reduction to stay under 300KB (BiP and most messengers require small images)
-      let quality = 0.90;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      while (dataUrl.length > 400000 && quality > 0.40) {
-        quality -= 0.10;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-      onDone(dataUrl);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="glass w-full max-w-lg rounded-2xl p-5 space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-white flex items-center gap-2">
-            <Crop className="h-4 w-4 text-violet-400" />
-            Редактор изображения
-          </span>
-          <button onClick={onCancel} className="text-white/30 hover:text-white/70 transition">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <p className="text-[10px] text-white/30">Перетащите для позиционирования · Щипок двумя пальцами для масштабирования (1200×630 px)</p>
-
-        {/* Canvas display */}
-        <div className="relative overflow-hidden rounded-xl border border-white/10"
-          style={{ width: DISP_W, height: DISP_H, cursor: 'grab', maxWidth: '100%', margin: '0 auto', touchAction: 'none' }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={() => { dragging.current = false; pinchStartDist.current = null; }}
-        >
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_W}
-            height={CANVAS_H}
-            style={{ width: DISP_W, height: DISP_H, display: 'block', maxWidth: '100%' }}
-          />
-          {/* crosshair overlay */}
-          <div className="pointer-events-none absolute inset-0 border border-cyan-400/20" />
-          <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 w-px bg-cyan-400/10 -translate-x-1/2" />
-          <div className="pointer-events-none absolute top-1/2 left-0 right-0 h-px bg-cyan-400/10 -translate-y-1/2" />
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-2 justify-center flex-wrap">
-          <button onClick={() => zoom(0.9)} className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-white/60 hover:text-white/90 transition active:scale-95">
-            <ZoomOut className="h-3.5 w-3.5" /> Уменьшить
-          </button>
-          <button onClick={() => zoom(1.1)} className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-white/60 hover:text-white/90 transition active:scale-95">
-            <ZoomIn className="h-3.5 w-3.5" /> Увеличить
-          </button>
-          <button onClick={autoFit} className="flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-300 hover:bg-violet-500/20 transition active:scale-95">
-            <Sparkles className="h-3.5 w-3.5" /> Автоподгонка
-          </button>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-white/10 py-2 text-xs text-white/40 hover:bg-white/5 transition active:scale-95"
-          >
-            Отмена
-          </button>
-          <button
-            onClick={handleDone}
-            className="btn-glow flex-1 rounded-lg bg-gradient-to-r from-violet-500/80 to-cyan-600/80 hover:from-violet-500 hover:to-cyan-600 py-2 text-xs font-semibold text-white transition active:scale-95 flex items-center justify-center gap-1.5"
-          >
-            <Check className="h-3.5 w-3.5" /> Применить
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 // ────────────────────────────────────────────────
 // Demo preview overlay
@@ -372,6 +127,7 @@ export function DesignPage({ settings, onUpdate }: Props) {
   const [prevImage, setPrevImage] = useState(settings.previewImage || '');
   const [prevSaved, setPrevSaved] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | undefined>(undefined);
   const [showDemo, setShowDemo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -416,6 +172,7 @@ export function DesignPage({ settings, onUpdate }: Props) {
     const reader = new FileReader();
     reader.onload = e => {
       const result = e.target?.result as string;
+      setCropFile(file);
       setCropSrc(result);
     };
     reader.readAsDataURL(file);
@@ -777,15 +534,17 @@ export function DesignPage({ settings, onUpdate }: Props) {
         </div>
       )}
 
-      {/* Image cropper modal */}
+      {/* SEO Image Editor modal */}
       {cropSrc && (
-        <ImageCropper
+        <SEOImageEditor
           src={cropSrc}
+          file={cropFile}
           onDone={dataUrl => {
             setPrevImage(dataUrl);
             setCropSrc(null);
+            setCropFile(undefined);
           }}
-          onCancel={() => setCropSrc(null)}
+          onCancel={() => { setCropSrc(null); setCropFile(undefined); }}
         />
       )}
 
