@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Palette, Check, Eye, EyeOff, Type, Save, ChevronDown, Link2, Image as ImageIcon, X, ZoomIn, ZoomOut, Move, Crop, Sparkles, ExternalLink } from 'lucide-react';
 import { Toggle } from '../Toggle';
@@ -276,7 +277,7 @@ function DemoPreview({ title, description, siteName, image, onClose }: DemoPrevi
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
@@ -368,7 +369,8 @@ function DemoPreview({ title, description, siteName, image, onClose }: DemoPrevi
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
