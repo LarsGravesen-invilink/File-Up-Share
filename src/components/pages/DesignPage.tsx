@@ -164,7 +164,24 @@ function ImageCropper({ src, onDone, onCancel }: CropperProps) {
     draw();
     const canvas = canvasRef.current;
     if (!canvas) return;
-    onDone(canvas.toDataURL('image/jpeg', 0.92));
+
+    // Detect if source has transparency by checking alpha channel
+    const img = imgRef.current;
+    const hasAlpha = img && (src.startsWith('data:image/png') || src.startsWith('data:image/webp') || src.startsWith('data:image/gif'));
+
+    if (hasAlpha) {
+      // Keep PNG for transparency support
+      onDone(canvas.toDataURL('image/png'));
+    } else {
+      // JPEG with progressive quality reduction to stay under 300KB (BiP and most messengers require small images)
+      let quality = 0.90;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      while (dataUrl.length > 400000 && quality > 0.40) {
+        quality -= 0.10;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      onDone(dataUrl);
+    }
   };
 
   return (
@@ -253,59 +270,101 @@ interface DemoPreviewProps {
 }
 
 function DemoPreview({ title, description, siteName, image, onClose }: DemoPreviewProps) {
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-sm mx-auto"
-        style={{ maxHeight: '90vh', overflowY: 'auto', padding: '12px 12px 20px' }}
+        className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f1320] shadow-2xl overflow-hidden"
+        style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-white/40 flex items-center gap-1.5">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
+          <span className="text-xs font-medium text-white/60 flex items-center gap-2">
             <ExternalLink className="h-3.5 w-3.5" />
             Предпросмотр карточки ссылки
           </span>
-          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition p-1">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 text-white/40 hover:text-white/80 transition"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="space-y-3">
-          {/* Telegram-style card */}
-          <div className="rounded-xl overflow-hidden border border-white/10 bg-[#1a1f2e]">
-            {image && (
-              <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-                <img src={image} alt="" className="w-full h-full object-cover" />
+        {/* Cards */}
+        <div className="overflow-y-auto p-4 space-y-4" style={{ overscrollBehavior: 'contain' }}>
+          {/* Telegram */}
+          <div>
+            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">Telegram</p>
+            <div className="rounded-xl overflow-hidden border border-white/10 bg-[#17212b]">
+              {image && (
+                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/30">
+                  <img src={image} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="px-3 py-2.5 space-y-0.5">
+                {siteName && <p className="text-[10px] text-[#5ac8fa] font-medium">{siteName}</p>}
+                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
               </div>
-            )}
-            <div className="p-3 space-y-0.5">
-              {siteName && <p className="text-[10px] text-cyan-400 font-medium">{siteName}</p>}
-              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-              {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
             </div>
           </div>
 
-          {/* WhatsApp-style card */}
-          <div className="rounded-xl overflow-hidden border-l-4 border-[#25D366] bg-[#1a1f2e]/80">
-            {image && (
-              <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-                <img src={image} alt="" className="w-full h-full object-cover" />
+          {/* WhatsApp */}
+          <div>
+            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">WhatsApp</p>
+            <div className="rounded-xl overflow-hidden bg-[#1a1f2e] border border-white/8" style={{ borderLeft: '4px solid #25D366' }}>
+              {image && (
+                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
+                  <img src={image} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="px-3 py-2.5 space-y-0.5">
+                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
+                {siteName && <p className="text-[10px] text-white/25 mt-0.5">{siteName}</p>}
               </div>
-            )}
-            <div className="p-3 space-y-0.5">
-              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-              {description && <p className="text-xs text-white/50 leading-snug line-clamp-2">{description}</p>}
-              {siteName && <p className="text-[10px] text-white/30">{siteName}</p>}
             </div>
           </div>
 
+          {/* BiP */}
+          <div>
+            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">BiP</p>
+            <div className="rounded-xl overflow-hidden bg-[#1c2233] border border-white/8">
+              {image && (
+                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
+                  <img src={image} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="px-3 py-2.5 space-y-0.5">
+                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
+                {siteName && <p className="text-[10px] text-[#7eb3f5] mt-0.5">{siteName}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-white/8 shrink-0">
           <button
             onClick={onClose}
-            className="w-full rounded-lg border border-white/10 py-2.5 text-xs text-white/40 hover:bg-white/5 transition active:scale-95"
+            className="w-full rounded-lg bg-white/6 hover:bg-white/10 py-2.5 text-xs text-white/60 hover:text-white/90 transition font-medium active:scale-[0.98]"
           >
-            Закрыть демо
+            Закрыть
           </button>
         </div>
       </motion.div>

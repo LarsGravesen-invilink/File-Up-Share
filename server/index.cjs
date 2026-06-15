@@ -611,11 +611,19 @@ app.post('/api/change-credentials', auth, function(req, res) {
 });
 
 // Public endpoint to serve the OG preview image (no auth — bots must access it)
-var OG_IMAGE_FILE = path.join(DATA_DIR, 'og-image.jpg');
+var OG_IMAGE_FILE_JPG = path.join(DATA_DIR, 'og-image.jpg');
+var OG_IMAGE_FILE_PNG = path.join(DATA_DIR, 'og-image.png');
+var OG_IMAGE_FILE = OG_IMAGE_FILE_JPG; // legacy compat
 app.get('/api/og-image', function(req, res) {
-  if (fs.existsSync(OG_IMAGE_FILE)) {
+  if (fs.existsSync(OG_IMAGE_FILE_PNG)) {
     res.setHeader('Cache-Control', 'public, max-age=60');
-    return res.sendFile(OG_IMAGE_FILE);
+    res.setHeader('Content-Type', 'image/png');
+    return res.sendFile(OG_IMAGE_FILE_PNG);
+  }
+  if (fs.existsSync(OG_IMAGE_FILE_JPG)) {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Content-Type', 'image/jpeg');
+    return res.sendFile(OG_IMAGE_FILE_JPG);
   }
   res.status(404).end();
 });
@@ -630,8 +638,16 @@ app.patch('/api/config', auth, function(req, res) {
     try {
       var matches = req.body.previewImage.match(/^data:([a-z/]+);base64,(.+)$/);
       if (matches) {
+        var mimeType = matches[1];
         var imgBuf = Buffer.from(matches[2], 'base64');
-        fs.writeFileSync(OG_IMAGE_FILE, imgBuf);
+        if (mimeType === 'image/png') {
+          fs.writeFileSync(OG_IMAGE_FILE_PNG, imgBuf);
+          // Remove old jpg if exists so correct format is served
+          if (fs.existsSync(OG_IMAGE_FILE_JPG)) fs.unlinkSync(OG_IMAGE_FILE_JPG);
+        } else {
+          fs.writeFileSync(OG_IMAGE_FILE_JPG, imgBuf);
+          if (fs.existsSync(OG_IMAGE_FILE_PNG)) fs.unlinkSync(OG_IMAGE_FILE_PNG);
+        }
         req.body.previewImage = '/api/og-image';
       }
     } catch (e) { /* keep original if save fails */ }
