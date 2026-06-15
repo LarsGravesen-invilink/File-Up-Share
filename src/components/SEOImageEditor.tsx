@@ -127,15 +127,25 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
   scaleRef.current  = scale;
   offsetRef.current = { x: offsetX, y: offsetY };
 
+  // ── Responsive display size ──
+  const [winW, setWinW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWinW(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   // ── Derived preset ──
   const preset = PRESETS.find(p => p.id === presetId)!;
   const canvasW = presetId === 'custom' ? customW : preset.w;
   const canvasH = presetId === 'custom' ? customH : preset.h;
 
-  // Display dimensions (fit inside 500×360)
-  const MAX_DISP_W = 500;
-  const MAX_DISP_H = 340;
-  const dispScale = Math.min(MAX_DISP_W / canvasW, MAX_DISP_H / canvasH, 1);
+  // Display dimensions — fit inside available width with padding
+  // On mobile: winW - 2*padding(12px) - 2*modal-px(20px) = winW - 64
+  // On desktop: cap at 500px wide, 340px tall
+  const availW = Math.min(winW - 40, 500);   // 20px padding each side inside modal
+  const availH = Math.min(Math.floor(availW * 0.72), 300); // max height cap
+  const dispScale = Math.min(availW / canvasW, availH / canvasH, 1);
   const dispW = Math.round(canvasW * dispScale);
   const dispH = Math.round(canvasH * dispScale);
 
@@ -492,17 +502,17 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
 
   // ─────────────────────────────── Render ──────────────────────────────────
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md sm:p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.93, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, y: 32 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.18 }}
-        className="glass w-full rounded-2xl overflow-hidden"
-        style={{ maxWidth: 580, maxHeight: '96vh', display: 'flex', flexDirection: 'column' }}
+        className="glass w-full rounded-t-2xl sm:rounded-2xl overflow-hidden"
+        style={{ maxWidth: 580, maxHeight: '96dvh', display: 'flex', flexDirection: 'column' }}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-white/8 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/30 to-cyan-500/20">
               <Shield className="h-3.5 w-3.5 text-cyan-400" />
@@ -519,7 +529,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
 
         <div className="overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
           {/* ── Format picker ── */}
-          <div className="px-5 pt-4 pb-3 shrink-0">
+          <div className="px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
             <label className="mb-1.5 block text-[10px] font-medium text-white/30 uppercase tracking-wider">Формат</label>
             <div className="relative">
               <button
@@ -592,12 +602,13 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
           </div>
 
           {/* ── Canvas area ── */}
-          <div className="px-5 pb-3 shrink-0">
+          <div className="px-4 sm:px-5 pb-2 sm:pb-3 shrink-0">
             <div
               ref={containerRef}
               className="relative overflow-hidden rounded-xl border border-white/10 mx-auto"
               style={{
                 width: dispW,
+                maxWidth: '100%',
                 height: dispH,
                 cursor: 'grab',
                 touchAction: 'none',
@@ -613,7 +624,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
                 ref={canvasRef}
                 width={canvasW}
                 height={canvasH}
-                style={{ width: dispW, height: dispH, display: 'block' }}
+                style={{ width: '100%', height: '100%', display: 'block' }}
               />
             </div>
 
@@ -637,7 +648,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mx-5 mb-3 overflow-hidden"
+                className="mx-4 sm:mx-5 mb-2 sm:mb-3 overflow-hidden"
               >
                 <div className="flex items-start gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/6 px-3 py-2.5">
                   <Info className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
@@ -651,7 +662,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
           </AnimatePresence>
 
           {/* ── Transform controls ── */}
-          <div className="px-5 pb-4 space-y-3 shrink-0">
+          <div className="px-4 sm:px-5 pb-3 sm:pb-4 space-y-2.5 sm:space-y-3 shrink-0">
             {/* Zoom slider */}
             <div className="flex items-center gap-3">
               <button onClick={() => zoomBy(0.85)} className="rounded-lg border border-white/10 p-2 text-white/40 hover:bg-white/5 hover:text-white/70 transition active:scale-90 shrink-0">
@@ -722,7 +733,7 @@ export function SEOImageEditor({ src, file, onDone, onCancel }: SEOImageEditorPr
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex gap-2 px-5 py-4 border-t border-white/8 shrink-0">
+        <div className="flex gap-2 px-4 sm:px-5 py-3 sm:py-4 border-t border-white/8 shrink-0">
           <button
             onClick={onCancel}
             className="flex-1 rounded-xl border border-white/10 py-2.5 text-xs text-white/40 hover:bg-white/5 hover:text-white/60 transition active:scale-95"
