@@ -1101,6 +1101,7 @@ function buildOgHtml(ogTitle, ogDesc, ogSiteName, ogImage, ogUrl) {
     .replace(/<meta property="og:description"[^>]*>/, '<meta property="og:description" content="' + esc(ogDesc) + '" />')
     .replace(/<meta property="og:site_name"[^>]*>/, '<meta property="og:site_name" content="' + esc(ogSiteName) + '" />')
     .replace(/<meta property="og:image"[^>]*>/, '<meta property="og:image" content="' + esc(ogImage) + '" />')
+    .replace(/<meta name="twitter:card"[^>]*>/, '<meta name="twitter:card" content="' + (ogImage ? 'summary_large_image' : 'summary') + '" />')
     .replace(/<meta name="twitter:title"[^>]*>/, '<meta name="twitter:title" content="' + esc(ogTitle) + '" />')
     .replace(/<meta name="twitter:description"[^>]*>/, '<meta name="twitter:description" content="' + esc(ogDesc) + '" />')
     .replace(/<meta name="twitter:image"[^>]*>/, '<meta name="twitter:image" content="' + esc(ogImage) + '" />');
@@ -1127,7 +1128,7 @@ if (distPath) {
     var image = rawImg ? (rawImg.startsWith('/') ? baseUrl + rawImg + '?v=' + Date.now() : rawImg) : '';
     var html = buildOgHtml(title, desc, siteName, image, baseUrl + req.originalUrl);
     if (!html) return res.sendFile(path.join(distPath, 'index.html'));
-    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+    res.set('Cache-Control', 'no-store').set('Content-Type', 'text/html; charset=utf-8').send(html);
   });
 
   // Public upload page with OG meta injection
@@ -1145,7 +1146,7 @@ if (distPath) {
     var image = rawImg ? (rawImg.startsWith('/') ? baseUrl + rawImg + '?v=' + Date.now() : rawImg) : '';
     var html = buildOgHtml(title, desc, siteName, image, baseUrl + req.originalUrl);
     if (!html) return res.sendFile(path.join(distPath, 'index.html'));
-    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+    res.set('Cache-Control', 'no-store').set('Content-Type', 'text/html; charset=utf-8').send(html);
   });
 
   app.get('*', function(req, res) {

@@ -52,7 +52,11 @@ export function applyPublicPageMeta(nameOrConfig: string | PublicPageConfig, log
   const title = (useCustom && cfg.previewTitle) ? cfg.previewTitle : (cfg.name || 'FileUpShare');
   const description = (useCustom && cfg.previewDescription) ? cfg.previewDescription : SITE_DESCRIPTION;
   const siteName = (useCustom && cfg.previewSiteName) ? cfg.previewSiteName : title;
-  const image = (useCustom && cfg.previewImage) ? cfg.previewImage : (cfg.logo || '');
+  const rawImage = (useCustom && cfg.previewImage) ? cfg.previewImage : (cfg.logo || '');
+  // og:image must be an absolute URL — browsers and messengers both require it
+  const image = rawImage && rawImage.startsWith('/')
+    ? (window.location.origin + rawImage + (rawImage.includes('?') ? '&' : '?') + 'v=' + Date.now())
+    : rawImage;
 
   // Browser tab title
   document.title = title;
@@ -68,7 +72,7 @@ export function applyPublicPageMeta(nameOrConfig: string | PublicPageConfig, log
   set('meta[property="og:site_name"]', 'property', 'og:site_name', siteName);
 
   // Twitter Card
-  set('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary');
+  set('meta[name="twitter:card"]', 'name', 'twitter:card', image ? 'summary_large_image' : 'summary');
   set('meta[name="twitter:title"]', 'name', 'twitter:title', title);
   set('meta[name="twitter:description"]', 'name', 'twitter:description', description);
 
