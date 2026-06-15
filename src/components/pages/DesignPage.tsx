@@ -306,55 +306,36 @@ function DemoPreview({ title, description, siteName, image, onClose }: DemoPrevi
         </div>
 
         {/* Cards */}
-        <div className="overflow-y-auto p-4 space-y-4" style={{ overscrollBehavior: 'contain' }}>
-          {/* Telegram */}
-          <div>
-            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">Telegram</p>
-            <div className="rounded-xl overflow-hidden border border-white/10 bg-[#17212b]">
-              {image && (
-                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/30">
-                  <img src={image} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="px-3 py-2.5 space-y-0.5">
-                {siteName && <p className="text-[10px] text-[#5ac8fa] font-medium">{siteName}</p>}
-                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
+        <div className="overflow-y-auto p-4 space-y-3" style={{ overscrollBehavior: 'contain' }}>
+          {/* Вариант 1: с картинкой сверху */}
+          <div className="rounded-xl overflow-hidden border border-white/10 bg-[#17212b]">
+            {image && (
+              <div className="w-full aspect-[1200/630] overflow-hidden bg-black/30">
+                <img src={image} alt="" className="w-full h-full object-cover" />
               </div>
+            )}
+            <div className="px-3 py-2.5 space-y-0.5">
+              {siteName && <p className="text-[10px] text-[#5ac8fa] font-medium">{siteName}</p>}
+              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+              {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
             </div>
           </div>
 
-          {/* WhatsApp */}
-          <div>
-            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">WhatsApp</p>
-            <div className="rounded-xl overflow-hidden bg-[#1a1f2e] border border-white/8" style={{ borderLeft: '4px solid #25D366' }}>
-              {image && (
-                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-                  <img src={image} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="px-3 py-2.5 space-y-0.5">
-                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
-                {siteName && <p className="text-[10px] text-white/25 mt-0.5">{siteName}</p>}
-              </div>
+          {/* Вариант 2: текст + левая полоса (без картинки) */}
+          <div className="rounded-xl overflow-hidden bg-[#1a1f2e] border border-white/8" style={{ borderLeft: '4px solid #25D366' }}>
+            <div className="px-3 py-2.5 space-y-0.5">
+              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+              {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
+              {siteName && <p className="text-[10px] text-white/25 mt-0.5">{siteName}</p>}
             </div>
           </div>
 
-          {/* BiP */}
-          <div>
-            <p className="text-[10px] text-white/25 mb-1.5 ml-0.5">BiP</p>
-            <div className="rounded-xl overflow-hidden bg-[#1c2233] border border-white/8">
-              {image && (
-                <div className="w-full aspect-[1200/630] overflow-hidden bg-black/20">
-                  <img src={image} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="px-3 py-2.5 space-y-0.5">
-                <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
-                {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
-                {siteName && <p className="text-[10px] text-[#7eb3f5] mt-0.5">{siteName}</p>}
-              </div>
+          {/* Вариант 3: текст компактный (без картинки) */}
+          <div className="rounded-xl overflow-hidden bg-[#1c2233] border border-white/8">
+            <div className="px-3 py-2.5 space-y-0.5">
+              <p className="text-sm font-semibold text-white leading-tight">{title || 'Заголовок карточки'}</p>
+              {description && <p className="text-xs text-white/45 leading-snug line-clamp-2">{description}</p>}
+              {siteName && <p className="text-[10px] text-[#7eb3f5] mt-0.5">{siteName}</p>}
             </div>
           </div>
         </div>
